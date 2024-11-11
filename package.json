@@ -1,0 +1,29 @@
+{
+    "name": "com.ziyu.unity-ai-helper",
+    "version": "1.0.0",
+    "displayName": "Unity AI Helper",
+    "description": "An AI-powered Unity editor extension that helps with development tasks through natural language interaction.",
+    "unity": "2021.3",
+    "dependencies": {
+        "com.unity.llmapi": "1.0.0"
+    },
+    "keywords": [
+        "ai",
+        "editor",
+        "tool",
+        "assistant",
+        "development"
+    ],
+    "author": {
+        "name": "ziyu",
+        "email": "liziyu1209@gmail.com",
+        "url": "https://github.com/your-repo"
+    },
+    "samples": [
+        {
+            "displayName": "Basic Usage Example",
+            "description": "Contains example scenes and scripts demonstrating basic usage of the AI Helper",
+            "path": "Samples~/BasicExample"
+        }
+    ]
+}
