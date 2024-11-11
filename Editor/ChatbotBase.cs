@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using UnityLLMAPI.Services;
 using UnityLLMAPI.Config;
 using UnityLLMAPI.Models;
+using UnityAIHelper.Editor.Tools;
 
 namespace UnityAIHelper.Editor
 {
@@ -13,7 +14,7 @@ namespace UnityAIHelper.Editor
     {
         protected readonly ChatbotService chatbotService;
         protected readonly ChatHistoryStorage historyStorage;
-        protected readonly ToolSet toolSet;
+        protected readonly ToolRegistry toolRegistry;
 
         public abstract string Id { get; }
         public abstract string Name { get; }
@@ -36,16 +37,19 @@ namespace UnityAIHelper.Editor
             // 3. 创建OpenAI服务
             var openAIService = new OpenAIService(openAIConfig);
 
-            // 4. 创建ToolSet
-            toolSet = new ToolSet();
+            // 4. 初始化工具系统
+            toolRegistry = ToolRegistry.Instance;
 
-            // 5. 配置ChatBot
+            // 5. 注册工具
+            RegisterTools();
+
+            // 6. 配置ChatBot
             var chatbotConfig = new ChatbotConfig
             {
                 systemPrompt = systemPrompt,
                 useStreaming = useStreaming,
                 defaultModel = openAIConfig.defaultModel,
-                toolSet = toolSet
+                toolSet = toolRegistry.LLMToolSet // 使用工具注册表中的LLM工具集
             };
 
             if (useStreaming && streamingCallback != null)
@@ -53,10 +57,10 @@ namespace UnityAIHelper.Editor
                 chatbotConfig.onStreamingChunk = streamingCallback;
             }
 
-            // 6. 创建ChatBot服务
+            // 7. 创建ChatBot服务
             chatbotService = new ChatbotService(openAIService, chatbotConfig);
 
-            // 7. 加载历史聊天记录（如果需要）
+            // 8. 加载历史聊天记录（如果需要）
             if (useHistoryStorage)
             {
                 LoadChatHistory();
@@ -68,11 +72,13 @@ namespace UnityAIHelper.Editor
             try
             {
                 var response = await chatbotService.SendMessage(message, cancellationToken: cancellationToken);
+                
                 // 如果请求被取消，不保存聊天记录
                 if (!cancellationToken.IsCancellationRequested && historyStorage != null)
                 {
                     SaveChatHistory();
                 }
+                
                 return response;
             }
             catch (OperationCanceledException)
@@ -123,9 +129,44 @@ namespace UnityAIHelper.Editor
             historyStorage?.SaveHistory(chatbotService.Messages);
         }
 
-        protected void RegisterTool(Tool tool, Func<ToolCall, Task<string>> handler)
+        /// <summary>
+        /// 注册工具
+        /// </summary>
+        protected virtual void RegisterTools()
         {
-            toolSet.RegisterTool(tool, handler);
+        }
+
+        /// <summary>
+        /// 注册工具实例
+        /// </summary>
+        protected void RegisterTool<T>() where T : IUnityTool, new()
+        {
+            var tool = new T();
+            toolRegistry.RegisterTool(tool);
+        }
+
+        /// <summary>
+        /// 创建临时工具
+        /// </summary>
+        protected async Task<IUnityTool> CreateTemporaryToolAsync(string name, string scriptContent)
+        {
+            return await toolRegistry.CreateTemporaryToolAsync(name, scriptContent);
+        }
+
+        /// <summary>
+        /// 获取工具
+        /// </summary>
+        protected IUnityTool GetTool(string name)
+        {
+            return toolRegistry.GetTool(name);
+        }
+
+        /// <summary>
+        /// 获取指定类型的所有工具
+        /// </summary>
+        protected IEnumerable<IUnityTool> GetToolsByType(ToolType type)
+        {
+            return toolRegistry.GetToolsByType(type);
         }
     }
 }

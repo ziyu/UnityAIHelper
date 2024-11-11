@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityLLMAPI.Models;
+using UnityLLMAPI.Utils.Json;
 
 namespace UnityAIHelper.Editor
 {
@@ -44,7 +45,7 @@ namespace UnityAIHelper.Editor
                     last_modified = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
                 };
 
-                var json = JsonUtility.ToJson(history, true);
+                var json = JsonConverter.SerializeObject(history);
 
                 lock (fileLock)
                 {
@@ -74,7 +75,7 @@ namespace UnityAIHelper.Editor
                     json = File.ReadAllText(historyPath);
                 }
 
-                var history = JsonUtility.FromJson<ChatHistory>(json);
+                var history = JsonConverter.DeserializeObject<ChatHistory>(json);
                 
                 // 验证历史记录属于正确的chatbot
                 if (history.chatbot_id != chatbotId)
