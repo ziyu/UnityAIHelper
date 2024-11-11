@@ -2,17 +2,12 @@ using UnityEngine;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using UnityLLMAPI.Services;
-using UnityLLMAPI.Config;
 using UnityLLMAPI.Models;
 
 namespace UnityAIHelper.Editor
 {
-    public class UnityHelperChatbot : IChatbot
+    public class UnityHelperChatbot : ChatbotBase
     {
-        private readonly ChatbotService chatbotService;
-        private readonly ChatHistoryStorage historyStorage;
-        
         private const string SYSTEM_PROMPT = @"你是一个Unity开发助手，可以帮助用户：
 1. 解答Unity相关的开发问题
 2. 提供代码示例和最佳实践
@@ -38,46 +33,15 @@ namespace UnityAIHelper.Editor
 
 请用简洁专业的方式回答问题。当需要执行Unity操作时，请使用execute_unity_command工具。对于复杂的操作，优先考虑使用batch或repeat命令来组合基本命令。";
 
-        public string Id => "unity_helper";
-        public string Name => "Unity助手";
+        public override string Id => "unity_helper";
+        public override string Name => "Unity助手";
 
-        public UnityHelperChatbot()
+        public UnityHelperChatbot() : base(SYSTEM_PROMPT)
         {
-            // 1. 创建历史记录存储
-            historyStorage = new ChatHistoryStorage(Id);
-
-            // 2. 获取OpenAI配置
-            var openAIConfig = OpenAIConfig.Instance;
-            if (openAIConfig == null)
-            {
-                throw new Exception("请在Resources文件夹中创建OpenAIConfig配置文件");
-            }
-
-            // 3. 创建OpenAI服务
-            var openAIService = new OpenAIService(openAIConfig);
-
-            // 4. 创建ToolSet并注册Unity命令工具
-            var toolSet = new ToolSet();
-            RegisterUnityCommandTool(toolSet);
-
-            // 5. 配置ChatBot
-            var chatbotConfig = new ChatbotConfig
-            {
-                systemPrompt = SYSTEM_PROMPT,
-                useStreaming = false,
-                defaultModel = openAIConfig.defaultModel,
-                toolSet = toolSet
-            };
-
-            // 6. 创建ChatBot服务
-            chatbotService = new ChatbotService(openAIService, chatbotConfig);
-
-            // 7. 加载历史聊天记录
-            LoadChatHistory();
-            
+            RegisterUnityCommandTool();
         }
 
-        private void RegisterUnityCommandTool(ToolSet toolSet)
+        private void RegisterUnityCommandTool()
         {
             var unityCommandTool = new Tool
             {
@@ -117,7 +81,7 @@ namespace UnityAIHelper.Editor
                 }
             };
 
-            toolSet.RegisterTool(unityCommandTool, HandleUnityCommand);
+            RegisterTool(unityCommandTool, HandleUnityCommand);
         }
 
         private async Task<string> HandleUnityCommand(ToolCall toolCall)
@@ -137,57 +101,6 @@ namespace UnityAIHelper.Editor
                 Debug.LogError($"执行Unity命令时出错: {ex.Message}");
                 return $"执行命令失败: {ex.Message}";
             }
-        }
-
-        public async Task<ChatMessage> SendMessageAsync(string message)
-        {
-            try
-            {
-                var response = await chatbotService.SendMessage(message);
-                // 保存聊天记录
-                SaveChatHistory();
-                return response;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Error in UnityHelperChatbot: {ex}");
-                throw;
-            }
-        }
-
-        public IReadOnlyList<ChatMessage> GetChatHistory()
-        {
-            return chatbotService.Messages;
-        }
-
-        public void ClearHistory()
-        {
-            chatbotService.ClearHistory();
-            historyStorage.ClearHistory();
-        }
-
-        private void LoadChatHistory()
-        {
-            var history = historyStorage.LoadHistory();
-            if (history.Count > 0)
-            {
-                IList<ChatMessage> chatMessages = (IList<ChatMessage>)chatbotService.Messages;
-                chatMessages.Clear();
-                foreach (var message in history)
-                {
-                    chatMessages.Add(message);
-                }
-            }
-            else
-            {
-                chatbotService.ClearHistory(true);
-            }
-            
-        }
-
-        private void SaveChatHistory()
-        {
-            historyStorage.SaveHistory(chatbotService.Messages);
         }
 
         // 用于解析命令参数的辅助类

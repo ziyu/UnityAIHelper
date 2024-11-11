@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityLLMAPI.Models;
 
@@ -11,11 +12,34 @@ namespace UnityAIHelper.Editor
         private string userInput = "";
         private Vector2 scrollPosition;
         private bool isProcessing = false;
+        private CancellationTokenSource cancellationTokenSource;
         
         // 新建chatbot相关
         private bool isCreatingNew = false;
         private string newChatbotName = "";
         private string newChatbotPrompt = "";
+
+        // 用于缓存消息内容高度
+        private GUIStyle messageStyle;
+        private GUIContent tempContent = new GUIContent();
+
+        // 输入框高度相关
+        private float inputAreaHeight = 60f;
+        private const float MIN_INPUT_HEIGHT = 60f;
+        private const float MAX_INPUT_HEIGHT = 200f;
+        private bool isResizingInput = false;
+        private Rect resizeHandleRect;
+
+        // 自动滚动相关
+        private bool shouldScrollToBottom = false;
+        private float lastContentHeight = 0f;
+
+        // 缓存的视图宽度
+        private float cachedViewWidth = 0f;
+
+        // 状态显示相关
+        private const float STATUS_HEIGHT = 30f;
+        private GUIStyle statusStyle;
 
         [MenuItem("Window/AI Helper")]
         public static void ShowWindow()
@@ -23,8 +47,59 @@ namespace UnityAIHelper.Editor
             GetWindow<AIHelperWindow>("AI Helper");
         }
 
+        private void InitializeStyles()
+        {
+            if (messageStyle == null && EditorStyles.textArea != null)
+            {
+                messageStyle = new GUIStyle(EditorStyles.textArea)
+                {
+                    wordWrap = true,
+                    richText = true
+                };
+            }
+
+            if (statusStyle == null)
+            {
+                statusStyle = new GUIStyle(EditorStyles.helpBox)
+                {
+                    alignment = TextAnchor.MiddleLeft,
+                    padding = new RectOffset(10, 10, 5, 5),
+                    fontSize = 12
+                };
+            }
+        }
+
+        private void OnDisable()
+        {
+            // 窗口关闭时确保取消任何进行中的请求
+            cancellationTokenSource?.Cancel();
+            cancellationTokenSource?.Dispose();
+        }
+
         private void OnGUI()
         {
+            // 初始化样式
+            InitializeStyles();
+            
+            // 如果样式仍未初始化，本帧跳过绘制
+            if (messageStyle == null || statusStyle == null) 
+            {
+                return;
+            }
+
+            // 更新缓存的视图宽度
+            if (Math.Abs(cachedViewWidth - position.width) > 1)
+            {
+                cachedViewWidth = position.width;
+                Repaint(); // 强制重绘以更新布局
+            }
+
+            float totalHeight = position.height;
+            float toolbarHeight = EditorStyles.toolbar.fixedHeight;
+            float statusAreaHeight = isProcessing ? STATUS_HEIGHT : 0;
+            float inputAreaTotalHeight = inputAreaHeight + 20; // 20为边距
+            float chatAreaHeight = totalHeight - toolbarHeight - inputAreaTotalHeight - statusAreaHeight;
+
             DrawToolbar();
             
             if (isCreatingNew)
@@ -33,8 +108,43 @@ namespace UnityAIHelper.Editor
                 return;
             }
 
-            DrawChatArea();
-            DrawInputArea();
+            // 使用BeginVertical来确保正确的布局顺序
+            EditorGUILayout.BeginVertical();
+            
+            // 聊天区域
+            GUILayout.Space(toolbarHeight); // 为工具栏留出空间
+            DrawChatArea(chatAreaHeight);
+            
+            // 状态显示区域
+            if (isProcessing)
+            {
+                DrawStatusArea();
+            }
+            
+            // 输入区域（将自动定位在底部）
+            DrawInputArea(inputAreaTotalHeight);
+            
+            EditorGUILayout.EndVertical();
+
+            HandleInputAreaResize();
+        }
+
+        private void DrawStatusArea()
+        {
+            // 创建状态区域
+            Rect statusRect = GUILayoutUtility.GetRect(position.width, STATUS_HEIGHT);
+            GUI.Box(statusRect, "", statusStyle);
+
+            // 状态文本区域
+            Rect textRect = new Rect(statusRect.x + 10, statusRect.y, statusRect.width - 80, STATUS_HEIGHT);
+            GUI.Label(textRect, "AI思考中...", statusStyle);
+
+            // 取消按钮
+            Rect buttonRect = new Rect(statusRect.xMax - 70, statusRect.y + 5, 60, 20);
+            if (GUI.Button(buttonRect, "取消"))
+            {
+                CancelCurrentRequest();
+            }
         }
 
         private void DrawToolbar()
@@ -145,78 +255,190 @@ namespace UnityAIHelper.Editor
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawChatArea()
+        private void DrawChatArea(float height)
         {
-            // 聊天历史记录区域
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(position.height - 100));
-            
+            // 使用固定的宽度
+            float viewWidth = cachedViewWidth;
+            float contentWidth = viewWidth - 20; // 预留滚动条宽度
+
+            // 创建固定大小的滚动视图区域
+            Rect scrollViewRect = GUILayoutUtility.GetRect(viewWidth, height);
+            Rect contentRect = new Rect(0, 0, contentWidth - 20, 0);
+
             var chatHistory = ChatbotManager.Instance.GetCurrentChatbot().GetChatHistory();
+            float totalContentHeight = 0;
+
+            // 计算内容总高度
             foreach (var message in chatHistory)
             {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-                // 显示发送者和内容
-                var style = new GUIStyle(EditorStyles.boldLabel);
-                style.normal.textColor = GetMessageColor(message.role);
-                EditorGUILayout.LabelField(GetMessagePrefix(message.role), style);
-                
-                EditorGUILayout.TextArea(message.content ?? "", GUILayout.ExpandWidth(true));
-
-                // 如果有工具调用，显示工具调用信息
-                if (message.tool_calls != null)
-                {
-                    foreach (var toolCall in message.tool_calls)
-                    {
-                        EditorGUILayout.Space();
-                        EditorGUILayout.LabelField("执行命令:", EditorStyles.boldLabel);
-                        EditorGUILayout.TextArea($"{toolCall.function.name}: {toolCall.function.arguments}", 
-                            GUILayout.ExpandWidth(true));
-                    }
-                }
-                
-                EditorGUILayout.EndVertical();
-                GUILayout.Space(5);
+                totalContentHeight += CalculateMessageHeight(message, contentWidth - 40);
+                totalContentHeight += 10; // 消息间距
             }
 
-            if (Event.current.type == EventType.Layout && chatHistory.Count > 0)
+            contentRect.height = totalContentHeight;
+
+            // 检查是否需要滚动到底部
+            if (shouldScrollToBottom || Mathf.Abs(totalContentHeight - lastContentHeight) > 1)
             {
-                scrollPosition.y = float.MaxValue;
+                scrollPosition.y = totalContentHeight - height;
+                shouldScrollToBottom = false;
+                lastContentHeight = totalContentHeight;
             }
-            
-            EditorGUILayout.EndScrollView();
+
+            // 绘制滚动视图
+            scrollPosition = GUI.BeginScrollView(scrollViewRect, scrollPosition, contentRect);
+
+            float currentY = 0;
+            foreach (var message in chatHistory)
+            {
+                float messageHeight = DrawMessage(message, currentY, contentWidth - 40);
+                currentY += messageHeight + 5;
+            }
+
+            GUI.EndScrollView();
         }
 
-        private void DrawInputArea()
+        private float CalculateMessageHeight(ChatMessage message, float width)
         {
-            // 输入区域
-            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
-            GUI.enabled = !isProcessing;
+            float height = 20; // 发送者标签高度
+
+            // 计算消息内容高度
+            tempContent.text = message.content ?? "";
+            height += messageStyle.CalcHeight(tempContent, width);
+
+            // 如果有工具调用，计算工具调用信息高度
+            if (message.tool_calls != null)
+            {
+                foreach (var toolCall in message.tool_calls)
+                {
+                    height += 20; // 工具调用标签高度
+                    tempContent.text = $"{toolCall.function.name}: {toolCall.function.arguments}";
+                    height += messageStyle.CalcHeight(tempContent, width);
+                }
+            }
+
+            return height + 20; // 添加边距
+        }
+
+        private float DrawMessage(ChatMessage message, float y, float width)
+        {
+            float startY = y;
+            float currentY = y + 5;
             
+            // 绘制发送者
+            var style = new GUIStyle(EditorStyles.boldLabel);
+            style.normal.textColor = GetMessageColor(message.role);
+            GUI.Label(new Rect(10, currentY, width, 20), GetMessagePrefix(message.role), style);
+            currentY += 20;
+
+            // 绘制消息内容
+            tempContent.text = message.content ?? "";
+            float contentHeight = messageStyle.CalcHeight(tempContent, width);
+            GUI.TextArea(new Rect(10, currentY, width, contentHeight), message.content ?? "", messageStyle);
+            currentY += contentHeight;
+
+            // 如果有工具调用，绘制工具调用信息
+            if (message.tool_calls != null)
+            {
+                foreach (var toolCall in message.tool_calls)
+                {
+                    currentY += 5;
+                    GUI.Label(new Rect(10, currentY, width, 20), "执行命令:", EditorStyles.boldLabel);
+                    currentY += 20;
+
+                    tempContent.text = $"{toolCall.function.name}: {toolCall.function.arguments}";
+                    float toolCallHeight = messageStyle.CalcHeight(tempContent, width);
+                    GUI.TextArea(new Rect(10, currentY, width, toolCallHeight), 
+                        $"{toolCall.function.name}: {toolCall.function.arguments}", messageStyle);
+                    currentY += toolCallHeight;
+                }
+            }
+
+            return currentY - startY + 5;
+        }
+
+        private void DrawInputArea(float height)
+        {
+            // 使用GUILayoutUtility.GetRect确保正确的布局位置
+            Rect inputAreaRect = GUILayoutUtility.GetRect(position.width, height);
+            GUI.Box(inputAreaRect, "", EditorStyles.helpBox);
+
+            // 调整内部元素的位置
+            inputAreaRect.x += 5;
+            inputAreaRect.y += 5;
+            inputAreaRect.width -= 70; // 为发送按钮留出空间
+            inputAreaRect.height -= 10;
+
+            GUI.enabled = !isProcessing;
+
             // 处理回车键
             var currentEvent = Event.current;
+            bool shouldSend = false;
+            
             if (currentEvent.type == EventType.KeyDown && 
-                currentEvent.keyCode == KeyCode.Return && 
-                !string.IsNullOrEmpty(userInput) && 
-                EditorWindow.focusedWindow == this)
+                currentEvent.keyCode == KeyCode.Return)
             {
-                SendMessage(userInput);
+                if (currentEvent.shift)
+                {
+                    // Shift+Enter插入换行
+                    userInput += "\n";
+                }
+                else if (!string.IsNullOrEmpty(userInput) && 
+                         EditorWindow.focusedWindow == this)
+                {
+                    // 普通Enter发送消息
+                    shouldSend = true;
+                }
                 currentEvent.Use();
             }
-            
-            userInput = EditorGUILayout.TextField(userInput, GUILayout.ExpandWidth(true));
-            
-            if (GUILayout.Button("发送", GUILayout.Width(60)) && !string.IsNullOrEmpty(userInput))
+
+            // 绘制输入框
+            userInput = GUI.TextArea(inputAreaRect, userInput, messageStyle);
+
+            // 绘制发送按钮
+            Rect sendButtonRect = new Rect(inputAreaRect.xMax + 5, inputAreaRect.y, 60, 30);
+            if ((GUI.Button(sendButtonRect, "发送") || shouldSend) && !string.IsNullOrEmpty(userInput))
             {
                 SendMessage(userInput);
             }
-            
-            GUI.enabled = true;
-            EditorGUILayout.EndHorizontal();
 
-            // 处理中提示
-            if (isProcessing)
+            GUI.enabled = true;
+
+            // 绘制拖拽手柄
+            resizeHandleRect = new Rect(inputAreaRect.x, inputAreaRect.y - 5, inputAreaRect.width + 65, 5);
+            EditorGUIUtility.AddCursorRect(resizeHandleRect, MouseCursor.ResizeVertical);
+        }
+
+        private void HandleInputAreaResize()
+        {
+            var currentEvent = Event.current;
+            
+            switch (currentEvent.type)
             {
-                EditorGUILayout.HelpBox("AI思考中...", MessageType.Info);
+                case EventType.MouseDown:
+                    if (resizeHandleRect.Contains(currentEvent.mousePosition))
+                    {
+                        isResizingInput = true;
+                        currentEvent.Use();
+                    }
+                    break;
+
+                case EventType.MouseDrag:
+                    if (isResizingInput)
+                    {
+                        inputAreaHeight = Mathf.Clamp(
+                            inputAreaHeight - currentEvent.delta.y,
+                            MIN_INPUT_HEIGHT,
+                            MAX_INPUT_HEIGHT
+                        );
+                        currentEvent.Use();
+                        Repaint();
+                    }
+                    break;
+
+                case EventType.MouseUp:
+                    isResizingInput = false;
+                    break;
             }
         }
 
@@ -244,6 +466,16 @@ namespace UnityAIHelper.Editor
             };
         }
 
+        private void CancelCurrentRequest()
+        {
+            if (isProcessing && cancellationTokenSource != null)
+            {
+                cancellationTokenSource.Cancel();
+                isProcessing = false;
+                Repaint();
+            }
+        }
+
         private async void SendMessage(string message)
         {
             if (string.IsNullOrEmpty(message)) return;
@@ -251,11 +483,21 @@ namespace UnityAIHelper.Editor
             string currentInput = userInput;
             userInput = "";
             isProcessing = true;
+            shouldScrollToBottom = true;
+
+            // 创建新的CancellationTokenSource
+            cancellationTokenSource?.Dispose();
+            cancellationTokenSource = new CancellationTokenSource();
+
             Repaint();
 
             try
             {
-                await ChatbotManager.Instance.GetCurrentChatbot().SendMessageAsync(message);
+                await ChatbotManager.Instance.GetCurrentChatbot().SendMessageAsync(message, cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.Log("AI响应已取消");
             }
             catch (Exception ex)
             {

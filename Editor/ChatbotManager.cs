@@ -77,63 +77,19 @@ namespace UnityAIHelper.Editor
     }
 
     // 自定义Chatbot实现
-    public class CustomChatbot : IChatbot
+    public class CustomChatbot : ChatbotBase
     {
-        private readonly ChatbotService chatbotService;
         private readonly string id;
         private readonly string name;
 
-        public string Id => id;
-        public string Name => name;
+        public override string Id => id;
+        public override string Name => name;
 
-        public CustomChatbot(string id, string name, string systemPrompt)
+        public CustomChatbot(string id, string name, string systemPrompt) 
+            : base(systemPrompt, useHistoryStorage: false)
         {
             this.id = id;
             this.name = name;
-
-            // 1. 获取OpenAI配置
-            var openAIConfig = OpenAIConfig.Instance;
-            if (openAIConfig == null)
-            {
-                throw new Exception("请在Resources文件夹中创建OpenAIConfig配置文件");
-            }
-
-            // 2. 创建OpenAI服务
-            var openAIService = new OpenAIService(openAIConfig);
-
-            // 3. 配置ChatBot
-            var chatbotConfig = new ChatbotConfig
-            {
-                systemPrompt = systemPrompt,
-                useStreaming = false,
-                defaultModel = openAIConfig.defaultModel
-            };
-
-            // 4. 创建ChatBot服务
-            chatbotService = new ChatbotService(openAIService, chatbotConfig);
-        }
-
-        public async Task<ChatMessage> SendMessageAsync(string message)
-        {
-            try
-            {
-                return await chatbotService.SendMessage(message);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Error in CustomChatbot: {ex.Message}");
-                throw;
-            }
-        }
-
-        public IReadOnlyList<ChatMessage> GetChatHistory()
-        {
-            return chatbotService.Messages;
-        }
-
-        public void ClearHistory()
-        {
-            chatbotService.ClearHistory();
         }
     }
 }

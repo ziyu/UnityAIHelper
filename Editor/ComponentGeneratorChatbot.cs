@@ -1,16 +1,12 @@
 using UnityEngine;
 using System;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using UnityLLMAPI.Services;
-using UnityLLMAPI.Config;
 using UnityLLMAPI.Models;
 
 namespace UnityAIHelper.Editor
 {
-    public class ComponentGeneratorChatbot : IChatbot
+    public class ComponentGeneratorChatbot : ChatbotBase
     {
-        private readonly ChatbotService chatbotService;
         private const string SYSTEM_PROMPT = @"你是一个Unity组件生成专家，专门负责：
 1. 根据用户需求生成高质量的Unity组件脚本
 2. 为组件生成合适的类名
@@ -40,64 +36,12 @@ namespace UnityAIHelper.Editor
 
 请直接返回生成的代码，不需要其他解释。如果需要生成脚本名称，则只返回名称字符串。";
 
-        public string Id => "component_generator";
-        public string Name => "组件生成器";
+        public override string Id => "component_generator";
+        public override string Name => "组件生成器";
 
-        private Action<ChatMessage,bool> onStreamingResponse;
-
-        public ComponentGeneratorChatbot(Action<ChatMessage,bool> streamingCallback = null)
+        public ComponentGeneratorChatbot(Action<ChatMessage,bool> streamingCallback = null) 
+            : base(SYSTEM_PROMPT, useStreaming: true, streamingCallback: streamingCallback, useHistoryStorage: false)
         {
-            onStreamingResponse = streamingCallback;
-
-            // 1. 获取OpenAI配置
-            var openAIConfig = OpenAIConfig.Instance;
-            if (openAIConfig == null)
-            {
-                throw new Exception("请在Resources文件夹中创建OpenAIConfig配置文件");
-            }
-
-            // 2. 创建OpenAI服务
-            var openAIService = new OpenAIService(openAIConfig);
-
-            // 3. 配置ChatBot（组件生成器不需要Unity命令工具）
-            var chatbotConfig = new ChatbotConfig
-            {
-                systemPrompt = SYSTEM_PROMPT,
-                useStreaming = true, // 启用streaming
-                defaultModel = openAIConfig.defaultModel,
-                onStreamingChunk = OnStreamingResponse
-            };
-
-            // 4. 创建ChatBot服务
-            chatbotService = new ChatbotService(openAIService, chatbotConfig);
-        }
-
-        private void OnStreamingResponse(ChatMessage chatMessage,bool isDone)
-        {
-            onStreamingResponse?.Invoke(chatMessage,isDone);
-        }
-
-        public async Task<ChatMessage> SendMessageAsync(string message)
-        {
-            try
-            {
-                return await chatbotService.SendMessage(message);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Error in ComponentGeneratorChatbot: {ex}");
-                throw;
-            }
-        }
-
-        public IReadOnlyList<ChatMessage> GetChatHistory()
-        {
-            return chatbotService.Messages;
-        }
-
-        public void ClearHistory()
-        {
-            chatbotService.ClearHistory();
         }
     }
 }

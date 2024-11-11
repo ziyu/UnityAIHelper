@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Threading;
 using UnityLLMAPI.Models;
 
 namespace UnityAIHelper.Editor
@@ -8,7 +9,7 @@ namespace UnityAIHelper.Editor
     {
         string Id { get; }
         string Name { get; }
-        Task<ChatMessage> SendMessageAsync(string message);
+        Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default);
         IReadOnlyList<ChatMessage> GetChatHistory();
         void ClearHistory();
     }
