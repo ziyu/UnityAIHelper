@@ -11,6 +11,8 @@ namespace UnityAIHelper.Editor
     public class UnityHelperChatbot : IChatbot
     {
         private readonly ChatbotService chatbotService;
+        private readonly ChatHistoryStorage historyStorage;
+        
         private const string SYSTEM_PROMPT = @"你是一个Unity开发助手，可以帮助用户：
 1. 解答Unity相关的开发问题
 2. 提供代码示例和最佳实践
@@ -41,21 +43,24 @@ namespace UnityAIHelper.Editor
 
         public UnityHelperChatbot()
         {
-            // 1. 获取OpenAI配置
+            // 1. 创建历史记录存储
+            historyStorage = new ChatHistoryStorage(Id);
+
+            // 2. 获取OpenAI配置
             var openAIConfig = OpenAIConfig.Instance;
             if (openAIConfig == null)
             {
                 throw new Exception("请在Resources文件夹中创建OpenAIConfig配置文件");
             }
 
-            // 2. 创建OpenAI服务
+            // 3. 创建OpenAI服务
             var openAIService = new OpenAIService(openAIConfig);
 
-            // 3. 创建ToolSet并注册Unity命令工具
+            // 4. 创建ToolSet并注册Unity命令工具
             var toolSet = new ToolSet();
             RegisterUnityCommandTool(toolSet);
 
-            // 4. 配置ChatBot
+            // 5. 配置ChatBot
             var chatbotConfig = new ChatbotConfig
             {
                 systemPrompt = SYSTEM_PROMPT,
@@ -64,8 +69,12 @@ namespace UnityAIHelper.Editor
                 toolSet = toolSet
             };
 
-            // 5. 创建ChatBot服务
+            // 6. 创建ChatBot服务
             chatbotService = new ChatbotService(openAIService, chatbotConfig);
+
+            // 7. 加载历史聊天记录
+            LoadChatHistory();
+            
         }
 
         private void RegisterUnityCommandTool(ToolSet toolSet)
@@ -134,7 +143,10 @@ namespace UnityAIHelper.Editor
         {
             try
             {
-                return await chatbotService.SendMessage(message);
+                var response = await chatbotService.SendMessage(message);
+                // 保存聊天记录
+                SaveChatHistory();
+                return response;
             }
             catch (Exception ex)
             {
@@ -151,6 +163,31 @@ namespace UnityAIHelper.Editor
         public void ClearHistory()
         {
             chatbotService.ClearHistory();
+            historyStorage.ClearHistory();
+        }
+
+        private void LoadChatHistory()
+        {
+            var history = historyStorage.LoadHistory();
+            if (history.Count > 0)
+            {
+                IList<ChatMessage> chatMessages = (IList<ChatMessage>)chatbotService.Messages;
+                chatMessages.Clear();
+                foreach (var message in history)
+                {
+                    chatMessages.Add(message);
+                }
+            }
+            else
+            {
+                chatbotService.ClearHistory(true);
+            }
+            
+        }
+
+        private void SaveChatHistory()
+        {
+            historyStorage.SaveHistory(chatbotService.Messages);
         }
 
         // 用于解析命令参数的辅助类
