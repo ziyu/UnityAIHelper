@@ -22,7 +22,21 @@ namespace UnityAIHelper.Editor
             propertyEditorType = assembly.GetType("UnityEditor.PropertyEditor");
             
             EditorApplication.update += OnEditorUpdate;
-   
+        }
+
+        // 为组件添加上下文菜单
+        [MenuItem("CONTEXT/Component/AI Edit")]
+        private static void OnAIEditComponent(MenuCommand command)
+        {
+            var component = command.context as Component;
+            if (component != null)
+            {
+                var window = EditorWindow.GetWindow<GenerateComponentWindow>(true, "Generate Component");
+                window.minSize = new Vector2(400, 200);
+                window.SetTargetGameObject(component.gameObject);
+                window.SetTargetComponent(component);
+                window.Show();
+            }
         }
 
         private static void OnEditorUpdate()
