@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEditor;
 using UnityLLMAPI.Config;
 using UnityLLMAPI.Models;
 using UnityLLMAPI.Services;
 
 namespace UnityAIHelper.Editor
 {
+    [InitializeOnLoad]
     public class ChatbotManager
     {
         private static ChatbotManager instance;
@@ -34,7 +36,7 @@ namespace UnityAIHelper.Editor
             currentChatbotId = unityHelper.Id;
         }
 
-        public IChatbot CreateCustomChatbot(string id, string name, string systemPrompt)
+        public IChatbot CreateCustomChatbot(string id, string name,string description, string systemPrompt)
         {
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Chatbot ID cannot be empty");
@@ -42,7 +44,7 @@ namespace UnityAIHelper.Editor
             if (chatbots.ContainsKey(id))
                 throw new ArgumentException($"Chatbot with ID '{id}' already exists");
 
-            var chatbot = new CustomChatbot(id, name, systemPrompt);
+            var chatbot = new CustomChatbot(id, name, description,systemPrompt);
             chatbots.Add(id, chatbot);
             return chatbot;
         }
@@ -81,15 +83,18 @@ namespace UnityAIHelper.Editor
     {
         private readonly string id;
         private readonly string name;
+        private readonly string description;
 
         public override string Id => id;
         public override string Name => name;
+        public override string Description => description;
 
-        public CustomChatbot(string id, string name, string systemPrompt) 
-            : base(systemPrompt, useHistoryStorage: false)
+        public CustomChatbot(string id, string name,string description, string systemPrompt) 
+            : base(systemPrompt, useSessionStorage: true) // 启用历史记录存储
         {
             this.id = id;
             this.name = name;
+            this.description = description;
         }
     }
 }

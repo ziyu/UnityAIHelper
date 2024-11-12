@@ -12,31 +12,23 @@ namespace UnityAIHelper.Editor.Tools
     /// </summary>
     public class ToolRegistry
     {
-        private static ToolRegistry instance;
-        public static ToolRegistry Instance => instance ??= new ToolRegistry();
-
         private readonly Dictionary<string, IUnityTool> registeredTools = new();
-        private readonly Dictionary<string, Type> toolTypes = new();
-        private readonly Dictionary<string, object> toolInstances = new();
-        private readonly ToolSet llmToolSet;
-        private readonly ToolExecutor toolExecutor;
+        private readonly ToolSet toolSet;
 
-        private ToolRegistry()
+        public ToolRegistry()
         {
-            llmToolSet = new ToolSet();
-            toolExecutor = new ToolExecutor(this);
-            RegisterBuiltInTools();
+            this.toolSet = new ToolSet();
         }
 
         /// <summary>
         /// 获取LLM工具集
         /// </summary>
-        public ToolSet LLMToolSet => llmToolSet;
+        public ToolSet LLMToolSet => toolSet;
 
         /// <summary>
         /// 注册工具
         /// </summary>
-        public void RegisterTool(IUnityTool tool)
+        public void RegisterTool(IUnityTool tool,ToolExecutor toolExecutor)
         {
             if (string.IsNullOrEmpty(tool.Name))
                 throw new ArgumentException("Tool name cannot be empty");
@@ -49,7 +41,7 @@ namespace UnityAIHelper.Editor.Tools
             }
 
             // 检查LLM工具集中是否已存在
-            if (llmToolSet.HasTool(tool.Name))
+            if (toolSet.HasTool(tool.Name))
             {
                 Debug.LogWarning($"Tool '{tool.Name}' is already registered in LLM tool set. Skipping registration.");
                 return;
@@ -60,21 +52,7 @@ namespace UnityAIHelper.Editor.Tools
             // 转换为LLM工具并注册
             var llmTool = UnityToolAdapter.ToLLMTool(tool);
             var handler = UnityToolAdapter.CreateToolHandler(tool, toolExecutor);
-            llmToolSet.RegisterTool(llmTool, handler);
-        }
-
-        /// <summary>
-        /// 注册工具类型
-        /// </summary>
-        public void RegisterToolType<T>() where T : IUnityTool
-        {
-            var type = typeof(T);
-            if (toolTypes.ContainsKey(type.Name))
-            {
-                Debug.LogWarning($"Tool type '{type.Name}' is already registered. Skipping registration.");
-                return;
-            }
-            toolTypes[type.Name] = type;
+            toolSet.RegisterTool(llmTool, handler);
         }
 
         /// <summary>
@@ -84,16 +62,6 @@ namespace UnityAIHelper.Editor.Tools
         {
             if (registeredTools.TryGetValue(name, out var tool))
                 return tool;
-
-            if (toolTypes.TryGetValue(name, out var type))
-            {
-                if (!toolInstances.TryGetValue(name, out var instance))
-                {
-                    instance = Activator.CreateInstance(type);
-                    toolInstances[name] = instance;
-                }
-                return (IUnityTool)instance;
-            }
 
             throw new KeyNotFoundException($"Tool '{name}' not found");
         }
@@ -119,7 +87,7 @@ namespace UnityAIHelper.Editor.Tools
         /// </summary>
         public bool HasTool(string name)
         {
-            return registeredTools.ContainsKey(name) || toolTypes.ContainsKey(name) || llmToolSet.HasTool(name);
+            return registeredTools.ContainsKey(name) || toolSet.HasTool(name);
         }
 
         /// <summary>
@@ -128,36 +96,32 @@ namespace UnityAIHelper.Editor.Tools
         public void RemoveTool(string name)
         {
             registeredTools.Remove(name);
-            toolTypes.Remove(name);
-            toolInstances.Remove(name);
-            llmToolSet.UnregisterTool(name);
+            toolSet.UnregisterTool(name);
         }
 
         /// <summary>
-        /// 清理所有工具
+        /// 清理所有工具和执行上下文
         /// </summary>
         public void Clear()
         {
             registeredTools.Clear();
-            toolTypes.Clear();
-            toolInstances.Clear();
-            llmToolSet.Clear();
+            toolSet.Clear();
         }
 
         /// <summary>
         /// 注册内置工具
         /// </summary>
-        private void RegisterBuiltInTools()
+        public void RegisterBuiltInTools(ToolExecutor toolExecutor)
         {
             // 系统工具
-            RegisterTool(new SystemTools.CreateFileTool());
-            RegisterTool(new SystemTools.ReadFileTool());
-            RegisterTool(new SystemTools.DeleteFileTool());
-            RegisterTool(new SystemTools.CopyFileTool());
-            RegisterTool(new SystemTools.SearchFilesTool());
-            RegisterTool(new SystemTools.WatchFileTool());
-            RegisterTool(new SystemTools.ExecuteCodeTool());
-            RegisterTool(new SystemTools.CreateScriptTool()); // 注册新的CreateScriptTool
+            RegisterTool(new SystemTools.CreateFileTool(),toolExecutor);
+            RegisterTool(new SystemTools.ReadFileTool(),toolExecutor);
+            RegisterTool(new SystemTools.DeleteFileTool(),toolExecutor);
+            RegisterTool(new SystemTools.CopyFileTool(),toolExecutor);
+            RegisterTool(new SystemTools.SearchFilesTool(),toolExecutor);
+            RegisterTool(new SystemTools.WatchFileTool(),toolExecutor);
+            RegisterTool(new SystemTools.ExecuteCodeTool(),toolExecutor);
+            RegisterTool(new SystemTools.CreateScriptTool(),toolExecutor);
         }
     }
 }

@@ -31,31 +31,19 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
         {
             var code = GetParameterValue<string>(parameters, "code");
             Assembly tempAssembly = null;
-            try
-            {
-                // 生成完整的类代码
-                var fullCode = GenerateFullCode(code, TempClassName, TempFuncName);
+            // 生成完整的类代码
+            var fullCode = GenerateFullCode(code, TempClassName, TempFuncName);
 
-                // 编译代码
-                tempAssembly = await CompileCodeAsync(fullCode);
-                if (tempAssembly == null)
-                {
-                    throw new Exception("Failed to compile code");
-                }
+            // 编译代码
+            tempAssembly = await CompileCodeAsync(fullCode);
+            if (tempAssembly == null)
+            {
+                throw new Exception("Failed to compile code");
+            }
 
-                // 执行代码
-                var result = await ExecuteCompiledCode(tempAssembly, TempClassName, TempFuncName);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Failed to execute code: {ex}");
-                return new { Success = false, Error = ex.Message };
-            }
-            finally
-            {
-                
-            }
+            // 执行代码
+            var result = await ExecuteCompiledCode(tempAssembly, TempClassName, TempFuncName);
+            return result;
         }
 
         private string GenerateFullCode(string userCode, string className, string methodName)
@@ -71,7 +59,7 @@ namespace UnityAIHelper.Editor.TempCode
 {{
     public class {className}
     {{
-        public static async Task<string> {methodName}()
+        public static async Task<object> {methodName}()
         {{
             try
             {{
@@ -182,7 +170,7 @@ namespace UnityAIHelper.Editor.TempCode
             return references;
         }
 
-        private async Task<string> ExecuteCompiledCode(Assembly assembly, string className, string methodName)
+        private async Task<object> ExecuteCompiledCode(Assembly assembly, string className, string methodName)
         {
             try
             {
@@ -201,7 +189,7 @@ namespace UnityAIHelper.Editor.TempCode
                 }
 
                 // 执行方法
-                var task = (Task<string>)method.Invoke(null, null);
+                var task = (Task<object>)method.Invoke(null, null);
                 return await task;
             }
             catch (Exception ex)

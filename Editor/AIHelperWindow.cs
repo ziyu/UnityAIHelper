@@ -17,6 +17,7 @@ namespace UnityAIHelper.Editor
         // 新建chatbot相关
         private bool isCreatingNew = false;
         private string newChatbotName = "";
+        private string newChatbotDescription = "";
         private string newChatbotPrompt = "";
 
         // 用于缓存消息内容高度
@@ -66,6 +67,17 @@ namespace UnityAIHelper.Editor
                     padding = new RectOffset(10, 10, 5, 5),
                     fontSize = 12
                 };
+            }
+        }
+
+        private void OnEnable()
+        {
+            // 检查是否有未完成的对话
+            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
+            if (currentBot.HasPendingMessage)
+            {
+                isProcessing = true;
+                Repaint();
             }
         }
 
@@ -136,12 +148,23 @@ namespace UnityAIHelper.Editor
             GUI.Box(statusRect, "", statusStyle);
 
             // 状态文本区域
-            Rect textRect = new Rect(statusRect.x + 10, statusRect.y, statusRect.width - 80, STATUS_HEIGHT);
+            Rect textRect = new Rect(statusRect.x + 10, statusRect.y, statusRect.width - 200, STATUS_HEIGHT);
             GUI.Label(textRect, "AI思考中...", statusStyle);
 
+            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
+            if (currentBot.HasPendingMessage)
+            {
+                // 继续按钮
+                Rect continueRect = new Rect(statusRect.xMax - 220, statusRect.y + 5, 150, 20);
+                if (GUI.Button(continueRect, "继续之前对话"))
+                {
+                    ContinueMessage();
+                }
+            }
+
             // 取消按钮
-            Rect buttonRect = new Rect(statusRect.xMax - 70, statusRect.y + 5, 60, 20);
-            if (GUI.Button(buttonRect, "取消"))
+            Rect cancelRect = new Rect(statusRect.xMax - 70, statusRect.y + 5, 60, 20);
+            if (GUI.Button(cancelRect, "取消"))
             {
                 CancelCurrentRequest();
             }
@@ -174,7 +197,7 @@ namespace UnityAIHelper.Editor
                 });
 
                 // 只有非默认chatbot才能删除
-                if (currentBot.Id != "unity_helper")
+                if (currentBot.Id != "UnityHelper")
                 {
                     menu.AddItem(new GUIContent("删除当前助手"), false, () =>
                     {
@@ -217,6 +240,13 @@ namespace UnityAIHelper.Editor
             
             EditorGUILayout.Space();
             
+            EditorGUILayout.Space();
+            
+            EditorGUILayout.LabelField("描述:");
+            newChatbotDescription = EditorGUILayout.TextField(newChatbotDescription);
+            
+            EditorGUILayout.Space();
+            
             EditorGUILayout.LabelField("系统提示:");
             newChatbotPrompt = EditorGUILayout.TextArea(newChatbotPrompt, GUILayout.Height(100));
             
@@ -237,7 +267,7 @@ namespace UnityAIHelper.Editor
                 try
                 {
                     string id = "custom_" + Guid.NewGuid().ToString("N");
-                    ChatbotManager.Instance.CreateCustomChatbot(id, newChatbotName, newChatbotPrompt);
+                    ChatbotManager.Instance.CreateCustomChatbot(id, newChatbotName,newChatbotDescription, newChatbotPrompt);
                     ChatbotManager.Instance.SwitchChatbot(id);
                     isCreatingNew = false;
                     Repaint();
@@ -468,9 +498,17 @@ namespace UnityAIHelper.Editor
 
         private void CancelCurrentRequest()
         {
-            if (isProcessing && cancellationTokenSource != null)
+            var currentBot=ChatbotManager.Instance.GetCurrentChatbot();
+            if (currentBot.HasPendingMessage)
             {
-                cancellationTokenSource.Cancel();
+                currentBot.ClearPendingState();
+                isProcessing = false;
+                Repaint();
+            }
+            else if (isProcessing)
+            {
+                cancellationTokenSource?.Cancel();
+                cancellationTokenSource = null;
                 isProcessing = false;
                 Repaint();
             }
@@ -503,6 +541,34 @@ namespace UnityAIHelper.Editor
             {
                 Debug.LogError($"获取AI响应时出错: {ex.Message}");
                 EditorUtility.DisplayDialog("错误", "无法获取AI响应，请查看控制台了解详细信息。", "确定");
+            }
+            finally
+            {
+                isProcessing = false;
+                Repaint();
+            }
+        }
+
+        private async void ContinueMessage()
+        {
+            if (!isProcessing) return;
+
+            try
+            {
+                // 创建新的CancellationTokenSource
+                cancellationTokenSource?.Dispose();
+                cancellationTokenSource = new CancellationTokenSource();
+
+                await ChatbotManager.Instance.GetCurrentChatbot().ContinueMessageAsync(cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.Log("AI响应已取消");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"继续对话时出错: {ex}");
+                EditorUtility.DisplayDialog("错误", "无法继续对话，请查看控制台了解详细信息。", "确定");
             }
             finally
             {

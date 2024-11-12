@@ -7,24 +7,29 @@ using UnityLLMAPI.Services;
 using UnityLLMAPI.Config;
 using UnityLLMAPI.Models;
 using UnityAIHelper.Editor.Tools;
+using UnityLLMAPI.Interfaces;
 
 namespace UnityAIHelper.Editor
 {
     public abstract class ChatbotBase : IChatbot
     {
         protected readonly ChatbotService chatbotService;
-        protected readonly ChatHistoryStorage historyStorage;
+        protected readonly ChatSessionStorage sessionStorage;
         protected readonly ToolRegistry toolRegistry;
+        protected readonly ToolExecutor toolExecutor;
 
         public abstract string Id { get; }
         public abstract string Name { get; }
+        public abstract string Description { get; }
+        
+        public event Action<ChatMessage> OnStreamingMessage;
 
-        protected ChatbotBase(string systemPrompt, bool useStreaming = false, Action<ChatMessage, bool> streamingCallback = null, bool useHistoryStorage = true)
+        protected ChatbotBase(string systemPrompt, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
         {
-            // 1. 创建历史记录存储（如果需要）
-            if (useHistoryStorage)
+            // 1. 创建会话存储（如果需要）
+            if (useSessionStorage)
             {
-                historyStorage = new ChatHistoryStorage(Id);
+                sessionStorage = new ChatSessionStorage(Id);
             }
 
             // 2. 获取OpenAI配置
@@ -38,59 +43,87 @@ namespace UnityAIHelper.Editor
             var openAIService = new OpenAIService(openAIConfig);
 
             // 4. 初始化工具系统
-            toolRegistry = ToolRegistry.Instance;
-
+            toolRegistry = new ToolRegistry();
+            toolExecutor = new ToolExecutor(toolRegistry);
+            
             // 5. 注册工具
             RegisterTools();
 
             // 6. 配置ChatBot
             var chatbotConfig = new ChatbotConfig
             {
-                systemPrompt = systemPrompt,
+                systemPrompt = GetSystemPrompt(systemPrompt),
                 useStreaming = useStreaming,
                 defaultModel = openAIConfig.defaultModel,
                 toolSet = toolRegistry.LLMToolSet // 使用工具注册表中的LLM工具集
             };
 
-            if (useStreaming && streamingCallback != null)
+            if (useStreaming)
             {
-                chatbotConfig.onStreamingChunk = streamingCallback;
+                chatbotConfig.onStreamingChunk = OnStreamingCallBack;
+                if (streamingCallback != null)
+                {
+                    OnStreamingMessage += streamingCallback;
+                }
             }
 
-            // 7. 创建ChatBot服务
-            chatbotService = new ChatbotService(openAIService, chatbotConfig);
-
-            // 8. 加载历史聊天记录（如果需要）
-            if (useHistoryStorage)
+            
+            // 7. 加载会话（如果需要）
+            ChatSession session = null;
+            if (useSessionStorage)
             {
-                LoadChatHistory();
+                session=LoadSession();
             }
+            
+            //8. 新建ChatbotService
+            chatbotService = session == null ? new ChatbotService(openAIService, chatbotConfig) : new ChatbotService(openAIService, chatbotConfig,session);
+            chatbotService.StateChanged += OnChatStateChanged;
+        }
+
+        /// <summary>
+        /// 获取系统提示词
+        /// </summary>
+        protected virtual string GetSystemPrompt(string basePrompt)
+        {
+            return basePrompt;
+        }
+
+        void OnStreamingCallBack(ChatMessage chatMessage)
+        {
+            OnStreamingMessage?.Invoke(chatMessage);
+        }
+
+        void OnChatStateChanged(object sender, ChatStateChangedEventArgs e)
+        {
+            SaveSession();
         }
 
         public virtual async Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default)
         {
-            try
+            var response= await chatbotService.SendMessage(message, new ChatParams()
             {
-                var response = await chatbotService.SendMessage(message, cancellationToken: cancellationToken);
-                
-                // 如果请求被取消，不保存聊天记录
-                if (!cancellationToken.IsCancellationRequested && historyStorage != null)
-                {
-                    SaveChatHistory();
-                }
-                
-                return response;
-            }
-            catch (OperationCanceledException)
+                CancellationToken = cancellationToken
+            });
+            SaveSession();
+            return response;
+        }
+
+        /// <summary>
+        /// 继续之前的对话
+        /// </summary>
+        public virtual async Task<ChatMessage> ContinueMessageAsync(CancellationToken cancellationToken = default)
+        {
+            if (!chatbotService.IsInterrupted)
             {
-                // 重新抛出取消异常，让调用者处理
-                throw;
+                throw new InvalidOperationException("没有需要继续的对话");
             }
-            catch (Exception ex)
+
+            var response= await chatbotService.ResumeSession(new ChatParams()
             {
-                Debug.LogError($"Error in {GetType().Name}: {ex}");
-                throw;
-            }
+                CancellationToken = cancellationToken
+            });
+            SaveSession();
+            return response;
         }
 
         public virtual IReadOnlyList<ChatMessage> GetChatHistory()
@@ -101,32 +134,57 @@ namespace UnityAIHelper.Editor
         public virtual void ClearHistory()
         {
             chatbotService.ClearHistory();
-            historyStorage?.ClearHistory();
         }
 
-        protected virtual void LoadChatHistory()
-        {
-            if (historyStorage == null) return;
 
-            var history = historyStorage.LoadHistory();
-            if (history.Count > 0)
+        /// <summary>
+        /// 重新加载会话
+        /// </summary>
+        public void ReloadSession()
+        {
+            var session = LoadSession();
+            this.chatbotService.SetSession(session);
+        }
+        
+        /// <summary>
+        /// 加载会话
+        /// </summary>
+        protected virtual ChatSession LoadSession()
+        {
+            if (sessionStorage == null) return null;
+
+            try 
             {
-                IList<ChatMessage> chatMessages = (IList<ChatMessage>)chatbotService.Messages;
-                chatMessages.Clear();
-                foreach (var message in history)
-                {
-                    chatMessages.Add(message);
-                }
+                return sessionStorage.LoadSession();
             }
-            else
+            catch (Exception ex)
             {
-                chatbotService.ClearHistory(true);
+                Debug.LogError($"加载会话失败: {ex.Message}");
             }
+            return null;
         }
 
-        protected virtual void SaveChatHistory()
+
+        public virtual void SaveSession()
         {
-            historyStorage?.SaveHistory(chatbotService.Messages);
+            if (sessionStorage == null) return;
+
+            try
+            {
+                var session = chatbotService.Session;
+                sessionStorage.SaveSession(session);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"保存会话失败: {ex.Message}");
+            }
+        }
+        
+        
+        public void ClearPendingState()
+        {
+            toolExecutor?.ClearContext();
+            chatbotService.ClearPending();
         }
 
         /// <summary>
@@ -134,6 +192,7 @@ namespace UnityAIHelper.Editor
         /// </summary>
         protected virtual void RegisterTools()
         {
+            toolRegistry.RegisterBuiltInTools(toolExecutor);
         }
 
         /// <summary>
@@ -142,7 +201,7 @@ namespace UnityAIHelper.Editor
         protected void RegisterTool<T>() where T : IUnityTool, new()
         {
             var tool = new T();
-            toolRegistry.RegisterTool(tool);
+            toolRegistry.RegisterTool(tool,toolExecutor);
         }
 
         /// <summary>
@@ -160,5 +219,10 @@ namespace UnityAIHelper.Editor
         {
             return toolRegistry.GetToolsByType(type);
         }
+
+        /// <summary>
+        /// 检查是否有未完成的对话
+        /// </summary>
+        public bool HasPendingMessage => chatbotService.IsInterrupted;
     }
 }

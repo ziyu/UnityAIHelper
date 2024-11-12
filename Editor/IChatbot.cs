@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
@@ -9,8 +10,19 @@ namespace UnityAIHelper.Editor
     {
         string Id { get; }
         string Name { get; }
+        string Description { get; }
+        event Action<ChatMessage> OnStreamingMessage;
         Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default);
+        Task<ChatMessage> ContinueMessageAsync(CancellationToken cancellationToken = default);
+
+        
         IReadOnlyList<ChatMessage> GetChatHistory();
         void ClearHistory();
+        
+        
+        bool HasPendingMessage { get; }
+        void ClearPendingState();
+        
+        void SaveSession();
     }
 }

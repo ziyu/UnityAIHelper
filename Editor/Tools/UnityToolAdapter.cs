@@ -88,9 +88,11 @@ namespace UnityAIHelper.Editor.Tools
                     
                     // 执行工具
                     var result = await executor.ExecuteToolAsync(unityTool.Name, parameters);
-                    
+
                     // 转换结果为字符串
-                    return JsonConverter.SerializeObject(result);
+                    var resultJson = JsonConverter.SerializeObject(result);
+                    Debug.Log(resultJson);
+                    return resultJson;
                 }
                 catch (Exception ex)
                 {

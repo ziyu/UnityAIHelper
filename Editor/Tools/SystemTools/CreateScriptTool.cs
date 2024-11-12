@@ -29,7 +29,16 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
             string scriptPath = GetParameterValue<string>(parameters, "scriptPath");
             string script = GetParameterValue<string>(parameters, "script");
 
-            
+            var (fullPath, getScript) = Utils.GetScriptPathAndContent(scriptName, scriptPath);
+            if (getScript == script)
+            {
+                return new Dictionary<string, object>
+                {
+                    { "success", true },
+                    { "scriptPath", fullPath }
+                };
+            }
+
             var scriptFullPath = Utils.CreateScript(scriptName,scriptPath,script);
             
             AssetDatabase.Refresh();

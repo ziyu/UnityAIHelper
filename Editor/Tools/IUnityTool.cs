@@ -47,11 +47,12 @@ namespace UnityAIHelper.Editor.Tools
     /// <summary>
     /// 工具执行结果
     /// </summary>
+    [Serializable]
     public class ToolExecutionResult
     {
-        public bool Success { get; set; }
-        public object Result { get; set; }
-        public string Error { get; set; }
-        public IDictionary<string, object> OutputParameters { get; set; }
+        public bool Success;
+        public object Result;
+        public string Error;
+        public IDictionary<string, object> OutputParameters;
     }
 }

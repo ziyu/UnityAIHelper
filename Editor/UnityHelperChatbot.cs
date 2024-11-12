@@ -56,25 +56,25 @@ namespace UnityAIHelper.Editor
 
 请根据用户的需求，选择合适的工具来完成任务。大多数功能需求都通过执行临时代码实现。需要创建代码通过CreateScript工具实现。如果遇到问题，及时报告错误并提供解决方案。";
 
-        public override string Id => "UnityHelper";
+        public override string Id => "unity_helper";
         public override string Name => "Unity助手";
+        public override string Description => "Unity开发助手，可以帮助完成Unity相关的开发任务";
 
-        public UnityHelperChatbot(bool useStreaming = false, Action<ChatMessage, bool> streamingCallback = null)
-            : base(GenerateSystemPrompt(), useStreaming, streamingCallback)
+        public UnityHelperChatbot(bool useStreaming = false, Action<ChatMessage> streamingCallback = null)
+            : base(string.Empty, useStreaming, streamingCallback)
         {
         }
 
-        private static string GenerateSystemPrompt()
+        protected override string GetSystemPrompt(string basePrompt)
         {
             var toolsDescription = GenerateToolsDescription();
             return string.Format(SystemPromptTemplate, toolsDescription);
         }
 
-        private static string GenerateToolsDescription()
+        private string GenerateToolsDescription()
         {
             var sb = new StringBuilder();
-            var registry = ToolRegistry.Instance;
-            var allTools = registry.GetAllTools().ToList();
+            var allTools = toolRegistry.GetAllTools().ToList();
             
             var systemTools = allTools.Where(t => t.Type == ToolType.System)
                                     .Where(t => t.Name != "ExecuteCode")
@@ -92,11 +92,6 @@ namespace UnityAIHelper.Editor
             }
 
             return sb.ToString();
-        }
-
-        protected override void RegisterTools()
-        {
-            // 工具已在ToolRegistry.RegisterBuiltInTools中注册，这里不需要重复注册
         }
 
         public override async Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default)

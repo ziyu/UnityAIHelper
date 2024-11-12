@@ -1,15 +1,19 @@
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace UnityAIHelper.Editor.Tools
 {
+
     public class ToolExecutor
     {
         private readonly ToolRegistry _toolRegistry;
         private readonly Dictionary<string, object> _globalContext;
         private readonly ToolExecutionQueue _executionQueue;
+
+        public bool IsExecuting => _executionQueue.IsExecuting;
 
         public ToolExecutor(ToolRegistry registry)
         {
@@ -25,7 +29,7 @@ namespace UnityAIHelper.Editor.Tools
         /// <summary>
         /// 执行工具
         /// </summary>
-        public async Task<ToolExecutionResult> ExecuteToolAsync(string toolName, IDictionary<string, object> parameters)
+        public async Task<ToolExecutionResult> ExecuteToolAsync(string toolName, Dictionary<string, object> parameters)
         {
             try
             {
@@ -45,14 +49,15 @@ namespace UnityAIHelper.Editor.Tools
                 {
                     if (item.ToolName == toolName)
                     {
-                        if (item.Status == ToolExecutionStatus.Completed)
+                        if (item.Result != null)
                         {
                             tcs.TrySetResult(item.Result);
                         }
-                        else if (item.Status == ToolExecutionStatus.Failed)
+                        else if (item.Error != null)
                         {
-                            tcs.TrySetException(item.Error ?? new Exception("Tool execution failed"));
+                            tcs.TrySetException(item.Error);
                         }
+              
                         
                         // 移除事件监听
                         _executionQueue.OnToolExecutionCompleted -= OnComplete;
@@ -73,11 +78,20 @@ namespace UnityAIHelper.Editor.Tools
                 // 更新全局上下文
                 UpdateGlobalContext(toolName, result);
 
-                return new ToolExecutionResult
+                if (result != null)
                 {
-                    Success = true,
-                    Result = result
+                    return new ToolExecutionResult()
+                    {
+                        Success = true,
+                        Result = result
+                    };
+                }
+                return new ToolExecutionResult()
+                {
+                    Success = false,
+                    Error = tcs.Task.Exception?.Message
                 };
+
             }
             catch (Exception ex)
             {
@@ -92,7 +106,7 @@ namespace UnityAIHelper.Editor.Tools
 
         private void OnToolExecutionCompleted(ToolExecutionItem item)
         {
-            Debug.Log($"Tool '{item.ToolName}' completed successfully");
+            Debug.Log($"Tool '{item.ToolName}' completed successfully,result:{item.Result}");
         }
 
         private void OnToolExecutionFailed(ToolExecutionItem item)
@@ -103,7 +117,7 @@ namespace UnityAIHelper.Editor.Tools
         /// <summary>
         /// 处理工具参数
         /// </summary>
-        private async Task<IDictionary<string, object>> ProcessParametersAsync(IUnityTool tool, IDictionary<string, object> inputParams)
+        private async Task<Dictionary<string, object>> ProcessParametersAsync(IUnityTool tool, Dictionary<string, object> inputParams)
         {
             var processedParams = new Dictionary<string, object>();
 
@@ -184,6 +198,7 @@ namespace UnityAIHelper.Editor.Tools
         public void ClearContext()
         {
             _globalContext.Clear();
+            _executionQueue.Clear();
         }
     }
 }

@@ -98,7 +98,7 @@ namespace UnityAIHelper.Editor
             currentPhase = "";
         }
 
-        private void OnStreamingResponse(ChatMessage genMessage, bool isDone)
+        private void OnStreamingResponse(ChatMessage genMessage)
         {
             EditorApplication.delayCall += () =>
             {
