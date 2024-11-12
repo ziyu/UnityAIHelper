@@ -1,25 +1,25 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace UnityAIHelper.Editor.Tools
 {
-    /// <summary>
-    /// 工具执行器
-    /// </summary>
     public class ToolExecutor
     {
         private readonly ToolRegistry _toolRegistry;
         private readonly Dictionary<string, object> _globalContext;
-        private readonly Stack<string> _executionStack;
+        private readonly ToolExecutionQueue _executionQueue;
 
-        public ToolExecutor(ToolRegistry toolRegistry)
+        public ToolExecutor(ToolRegistry registry)
         {
-            _toolRegistry = toolRegistry;
+            _toolRegistry = registry;
             _globalContext = new Dictionary<string, object>();
-            _executionStack = new Stack<string>();
+            _executionQueue = new ToolExecutionQueue(registry);
+
+            // 监听工具执行状态
+            _executionQueue.OnToolExecutionCompleted += OnToolExecutionCompleted;
+            _executionQueue.OnToolExecutionFailed += OnToolExecutionFailed;
         }
 
         /// <summary>
@@ -29,47 +29,75 @@ namespace UnityAIHelper.Editor.Tools
         {
             try
             {
-                // 检查循环依赖
-                if (_executionStack.Contains(toolName))
-                {
-                    throw new Exception($"Circular dependency detected: {string.Join(" -> ", _executionStack)} -> {toolName}");
-                }
-
-                _executionStack.Push(toolName);
-
-                // 获取工具实例
                 var tool = _toolRegistry.GetTool(toolName);
                 
-                // 验证和处理参数
+                // 处理参数
                 var processedParams = await ProcessParametersAsync(tool, parameters);
                 
                 // 处理依赖
                 await HandleDependenciesAsync(tool);
+
+                // 创建TaskCompletionSource来等待工具执行完成
+                var tcs = new TaskCompletionSource<object>();
                 
-                // 执行工具
-                var result = await ExecuteWithContextAsync(tool, processedParams);
+                // 创建完成回调
+                void OnComplete(ToolExecutionItem item)
+                {
+                    if (item.ToolName == toolName)
+                    {
+                        if (item.Status == ToolExecutionStatus.Completed)
+                        {
+                            tcs.TrySetResult(item.Result);
+                        }
+                        else if (item.Status == ToolExecutionStatus.Failed)
+                        {
+                            tcs.TrySetException(item.Error ?? new Exception("Tool execution failed"));
+                        }
+                        
+                        // 移除事件监听
+                        _executionQueue.OnToolExecutionCompleted -= OnComplete;
+                        _executionQueue.OnToolExecutionFailed -= OnComplete;
+                    }
+                }
+
+                // 添加事件监听
+                _executionQueue.OnToolExecutionCompleted += OnComplete;
+                _executionQueue.OnToolExecutionFailed += OnComplete;
+
+                // 将工具添加到执行队列
+                _executionQueue.EnqueueTool(toolName, processedParams);
+
+                // 等待执行完成
+                var result = await tcs.Task;
                 
                 // 更新全局上下文
                 UpdateGlobalContext(toolName, result);
 
-                _executionStack.Pop();
-                
                 return new ToolExecutionResult
                 {
                     Success = true,
-                    Result = result,
-                    OutputParameters = processedParams
+                    Result = result
                 };
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Error executing tool '{toolName}': {ex}");
+                Debug.LogError($"Failed to execute tool '{toolName}': {ex}");
                 return new ToolExecutionResult
                 {
                     Success = false,
                     Error = ex.Message
                 };
             }
+        }
+
+        private void OnToolExecutionCompleted(ToolExecutionItem item)
+        {
+            Debug.Log($"Tool '{item.ToolName}' completed successfully");
+        }
+
+        private void OnToolExecutionFailed(ToolExecutionItem item)
+        {
+            Debug.LogError($"Tool '{item.ToolName}' failed: {item.Error}");
         }
 
         /// <summary>
@@ -83,14 +111,13 @@ namespace UnityAIHelper.Editor.Tools
             {
                 if (inputParams.TryGetValue(param.Name, out var value))
                 {
-                    // 转换参数值到正确的类型
                     processedParams[param.Name] = ConvertParameterValue(value, param.Type);
                 }
                 else if (param.IsRequired)
                 {
-                    throw new ArgumentException($"Required parameter '{param.Name}' is missing");
+                    throw new ArgumentException($"Required parameter '{param.Name}' not provided for tool '{tool.Name}'");
                 }
-                else
+                else if (param.DefaultValue != null)
                 {
                     processedParams[param.Name] = param.DefaultValue;
                 }
@@ -104,36 +131,16 @@ namespace UnityAIHelper.Editor.Tools
         /// </summary>
         private async Task HandleDependenciesAsync(IUnityTool tool)
         {
+            if (tool.Dependencies == null || tool.Dependencies.Count == 0)
+                return;
+
             foreach (var dependency in tool.Dependencies)
             {
-                if (!_globalContext.ContainsKey(dependency))
+                if (!_toolRegistry.HasTool(dependency))
                 {
-                    // 递归执行依赖工具
-                    var dependencyTool = _toolRegistry.GetTool(dependency);
-                    var result = await ExecuteToolAsync(dependency, new Dictionary<string, object>());
-                    if (!result.Success)
-                    {
-                        throw new Exception($"Failed to execute dependency '{dependency}': {result.Error}");
-                    }
+                    throw new InvalidOperationException($"Dependency tool '{dependency}' not found for tool '{tool.Name}'");
                 }
             }
-        }
-
-        /// <summary>
-        /// 在上下文中执行工具
-        /// </summary>
-        private async Task<object> ExecuteWithContextAsync(IUnityTool tool, IDictionary<string, object> parameters)
-        {
-            // 添加全局上下文到参数
-            foreach (var dependency in tool.Dependencies)
-            {
-                if (_globalContext.TryGetValue(dependency, out var contextValue))
-                {
-                    parameters[$"_context_{dependency}"] = contextValue;
-                }
-            }
-
-            return await tool.ExecuteAsync(parameters);
         }
 
         /// <summary>
@@ -141,89 +148,42 @@ namespace UnityAIHelper.Editor.Tools
         /// </summary>
         private void UpdateGlobalContext(string toolName, object result)
         {
-            _globalContext[toolName] = result;
+            if (result != null)
+            {
+                _globalContext[toolName] = result;
+            }
         }
 
         /// <summary>
-        /// 转换参数值到指定类型
+        /// 转换参数值类型
         /// </summary>
         private object ConvertParameterValue(object value, Type targetType)
         {
+            if (value == null)
+                return null;
+
+            if (targetType.IsAssignableFrom(value.GetType()))
+                return value;
+
             try
             {
-                if (value == null)
-                {
-                    return targetType.IsValueType ? Activator.CreateInstance(targetType) : null;
-                }
-
                 if (targetType.IsEnum)
-                {
                     return Enum.Parse(targetType, value.ToString());
-                }
-
-                if (targetType == typeof(Vector2) && value is string vectorStr)
-                {
-                    var parts = vectorStr.Split(',');
-                    return new Vector2(
-                        float.Parse(parts[0]),
-                        float.Parse(parts[1])
-                    );
-                }
-
-                if (targetType == typeof(Vector3) && value is string vectorStr3)
-                {
-                    var parts = vectorStr3.Split(',');
-                    return new Vector3(
-                        float.Parse(parts[0]),
-                        float.Parse(parts[1]),
-                        float.Parse(parts[2])
-                    );
-                }
-
-                // 处理数组和列表类型
-                if (targetType.IsArray || (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(List<>)))
-                {
-                    var elementType = targetType.IsArray ? targetType.GetElementType() : targetType.GetGenericArguments()[0];
-                    if (value is string str)
-                    {
-                        var elements = str.Split(',').Select(s => Convert.ChangeType(s.Trim(), elementType));
-                        if (targetType.IsArray)
-                        {
-                            var array = Array.CreateInstance(elementType, elements.Count());
-                            var i = 0;
-                            foreach (var element in elements)
-                            {
-                                array.SetValue(element, i++);
-                            }
-                            return array;
-                        }
-                        else
-                        {
-                            var list = (System.Collections.IList)Activator.CreateInstance(targetType);
-                            foreach (var element in elements)
-                            {
-                                list.Add(element);
-                            }
-                            return list;
-                        }
-                    }
-                }
 
                 return Convert.ChangeType(value, targetType);
             }
             catch (Exception ex)
             {
-                throw new ArgumentException($"Failed to convert value '{value}' to type {targetType.Name}: {ex.Message}");
+                throw new ArgumentException($"Failed to convert parameter value '{value}' to type '{targetType}'", ex);
             }
         }
 
         /// <summary>
-        /// 清理执行上下文
+        /// 清理全局上下文
         /// </summary>
         public void ClearContext()
         {
             _globalContext.Clear();
-            _executionStack.Clear();
         }
     }
 }

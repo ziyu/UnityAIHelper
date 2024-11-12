@@ -99,34 +99,6 @@ namespace UnityAIHelper.Editor.Tools
         }
 
         /// <summary>
-        /// 动态创建临时工具
-        /// </summary>
-        public async Task<IUnityTool> CreateTemporaryToolAsync(string name, string scriptContent)
-        {
-            try
-            {
-                // 检查是否已存在同名工具
-                if (HasTool(name))
-                {
-                    throw new InvalidOperationException($"A tool named '{name}' already exists");
-                }
-
-                // 编译临时脚本
-                var tool = await DynamicScriptCompiler.CompileAndCreateToolAsync(name, scriptContent);
-                
-                // 注册临时工具
-                RegisterTool(tool);
-                
-                return tool;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Failed to create temporary tool: {ex}");
-                throw;
-            }
-        }
-
-        /// <summary>
         /// 获取所有注册的工具
         /// </summary>
         public IEnumerable<IUnityTool> GetAllTools()
@@ -177,23 +149,6 @@ namespace UnityAIHelper.Editor.Tools
         /// </summary>
         private void RegisterBuiltInTools()
         {
-            // Unity工具
-            RegisterTool(new UnityTools.CreateGameObjectTool());
-            RegisterTool(new UnityTools.FindGameObjectTool());
-            RegisterTool(new UnityTools.DeleteGameObjectTool());
-            RegisterTool(new UnityTools.DuplicateGameObjectTool());
-
-            RegisterTool(new UnityTools.AddComponentTool());
-            RegisterTool(new UnityTools.RemoveComponentTool());
-            RegisterTool(new UnityTools.GetComponentPropertyTool());
-            RegisterTool(new UnityTools.SetComponentPropertyTool());
-            RegisterTool(new UnityTools.CopyComponentTool());
-
-            RegisterTool(new UnityTools.ImportAssetTool());
-            RegisterTool(new UnityTools.ExportAssetTool());
-            RegisterTool(new UnityTools.AnalyzeAssetDependenciesTool());
-            RegisterTool(new UnityTools.FindAssetReferencesTool());
-
             // 系统工具
             RegisterTool(new SystemTools.CreateFileTool());
             RegisterTool(new SystemTools.ReadFileTool());
@@ -201,8 +156,8 @@ namespace UnityAIHelper.Editor.Tools
             RegisterTool(new SystemTools.CopyFileTool());
             RegisterTool(new SystemTools.SearchFilesTool());
             RegisterTool(new SystemTools.WatchFileTool());
-            RegisterTool(new SystemTools.CreateToolTool());
             RegisterTool(new SystemTools.ExecuteCodeTool());
+            RegisterTool(new SystemTools.CreateScriptTool()); // 注册新的CreateScriptTool
         }
     }
 }

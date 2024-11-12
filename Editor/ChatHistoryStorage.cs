@@ -62,6 +62,7 @@ namespace UnityAIHelper.Editor
 
         public List<ChatMessage> LoadHistory()
         {
+            string json="";
             try
             {
                 if (!File.Exists(historyPath))
@@ -69,7 +70,7 @@ namespace UnityAIHelper.Editor
                     return new List<ChatMessage>();
                 }
 
-                string json;
+  
                 lock (fileLock)
                 {
                     json = File.ReadAllText(historyPath);
@@ -88,7 +89,7 @@ namespace UnityAIHelper.Editor
             }
             catch (Exception e)
             {
-                Debug.LogError($"加载聊天记录失败 (Chatbot: {chatbotId}): {e.Message}");
+                Debug.LogError($"加载聊天记录失败 (Chatbot: {chatbotId}): {e},history json:{json}");
                 return new List<ChatMessage>();
             }
         }

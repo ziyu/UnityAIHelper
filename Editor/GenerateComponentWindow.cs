@@ -40,7 +40,8 @@ namespace UnityAIHelper.Editor
         private bool isCodeGenerated = false;
         private string generatedScriptName = "";
         private string generatedScriptPath = "";
-        
+
+        private const string DefaultGenerateScriptPath = "Assets/Scripts";
         private const string PENDING_SCRIPT_KEY = "UnityAIHelper_PendingScript";
         private const string TARGET_GAMEOBJECT_ID_KEY = "UnityAIHelper_TargetGameObjectID";
         private const string WINDOW_INSTANCE_ID_KEY = "UnityAIHelper_WindowInstanceID";
@@ -78,6 +79,7 @@ namespace UnityAIHelper.Editor
                 if (monoScript != null)
                 {
                     existingScriptContent = monoScript.text;
+                    
                     newScriptContent = "";
                     if (codeDiffViewer != null)
                     {
@@ -325,6 +327,9 @@ namespace UnityAIHelper.Editor
                                 $"4. 保持原有功能的基础上进行改进\n" +
                                 $"5. 添加适当的注释说明\n" +
                                 "请只返回完整的修改后的代码，不需要其他解释。";
+                    
+                    var monoScript = MonoScript.FromMonoBehaviour(targetComponent as MonoBehaviour);
+                    generatedScriptPath = AssetDatabase.GetAssetPath(monoScript);
                 }
                 else
                 {
@@ -334,6 +339,7 @@ namespace UnityAIHelper.Editor
                                 $"3. 生成完整的MonoBehaviour脚本，包含必要的using语句\n" +
                                 $"4. 添加适当的注释说明\n" +
                                 "请只返回脚本的完整代码，不需要其他解释。";
+                    generatedScriptPath = Path.Combine(DefaultGenerateScriptPath,$"{generatedScriptName}.cs");
                 }
                 
                 var codeResponse = await componentGenerator.SendMessageAsync(codePrompt);
@@ -351,14 +357,13 @@ namespace UnityAIHelper.Editor
                     }
 
                     currentPhase = "Code generation completed. Please review the changes.";
-                    generatedScriptPath = Path.Combine("Assets/Scripts", $"{generatedScriptName}.cs");
                     isCodeGenerated = true;
                     Repaint();
                 }
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"Error generating component: {ex.Message}");
+                Debug.LogError($"Error generating component: {ex}");
                 EditorUtility.DisplayDialog("Error", $"Failed to generate component: {ex.Message}", "OK");
                 currentPhase = "Error: Generation failed";
                 ResetGenerationState();
@@ -383,7 +388,7 @@ namespace UnityAIHelper.Editor
             {
                 SavePendingData(generatedScriptName, generatedScriptPath);
                 isCodePending = true;
-                UnityCommandExecutor.CreateScript(new string[] { generatedScriptName, newScriptContent });
+                var scriptFullPath = Utils.CreateScript(generatedScriptName,generatedScriptPath,newScriptContent);
                 AssetDatabase.Refresh();
                 currentPhase = "Waiting for script compilation...";
                 Repaint();

@@ -10,9 +10,7 @@ namespace UnityAIHelper.Editor.Tools
     public enum ToolType
     {
         System,         // 系统工具
-        Unity,         // Unity工具
         Custom,        // 自定义工具
-        TempScript     // 临时脚本工具
     }
 
     /// <summary>

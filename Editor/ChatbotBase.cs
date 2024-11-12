@@ -146,14 +146,6 @@ namespace UnityAIHelper.Editor
         }
 
         /// <summary>
-        /// 创建临时工具
-        /// </summary>
-        protected async Task<IUnityTool> CreateTemporaryToolAsync(string name, string scriptContent)
-        {
-            return await toolRegistry.CreateTemporaryToolAsync(name, scriptContent);
-        }
-
-        /// <summary>
         /// 获取工具
         /// </summary>
         protected IUnityTool GetTool(string name)
