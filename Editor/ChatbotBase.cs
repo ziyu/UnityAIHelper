@@ -18,14 +18,21 @@ namespace UnityAIHelper.Editor
         protected readonly ToolRegistry toolRegistry;
         protected readonly ToolExecutor toolExecutor;
 
+        protected string name;
+        protected string description;
+        protected string systemPrompt;
+
         public abstract string Id { get; }
-        public abstract string Name { get; }
-        public abstract string Description { get; }
+        public virtual string Name => name;
+        public virtual string Description => description;
+        public virtual string SystemPrompt => systemPrompt;
         
         public event Action<ChatMessage> OnStreamingMessage;
 
         protected ChatbotBase(string systemPrompt, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
         {
+            this.systemPrompt = systemPrompt;
+
             // 1. 创建会话存储（如果需要）
             if (useSessionStorage)
             {
@@ -67,16 +74,15 @@ namespace UnityAIHelper.Editor
                 }
             }
 
-            
             // 7. 加载会话（如果需要）
             ChatSession session = null;
             if (useSessionStorage)
             {
-                session=LoadSession();
+                session = LoadSession();
             }
             
             //8. 新建ChatbotService
-            chatbotService = session == null ? new ChatbotService(openAIService, chatbotConfig) : new ChatbotService(openAIService, chatbotConfig,session);
+            chatbotService = session == null ? new ChatbotService(openAIService, chatbotConfig) : new ChatbotService(openAIService, chatbotConfig, session);
             chatbotService.StateChanged += OnChatStateChanged;
         }
 
@@ -100,7 +106,7 @@ namespace UnityAIHelper.Editor
 
         public virtual async Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default)
         {
-            var response= await chatbotService.SendMessage(message, new ChatParams()
+            var response = await chatbotService.SendMessage(message, new ChatParams()
             {
                 CancellationToken = cancellationToken
             });
@@ -118,7 +124,7 @@ namespace UnityAIHelper.Editor
                 throw new InvalidOperationException("没有需要继续的对话");
             }
 
-            var response= await chatbotService.ResumeSession(new ChatParams()
+            var response = await chatbotService.ResumeSession(new ChatParams()
             {
                 CancellationToken = cancellationToken
             });
@@ -135,7 +141,6 @@ namespace UnityAIHelper.Editor
         {
             chatbotService.ClearHistory();
         }
-
 
         /// <summary>
         /// 重新加载会话
@@ -164,7 +169,6 @@ namespace UnityAIHelper.Editor
             return null;
         }
 
-
         public virtual void SaveSession()
         {
             if (sessionStorage == null) return;
@@ -179,7 +183,6 @@ namespace UnityAIHelper.Editor
                 Debug.LogError($"保存会话失败: {ex.Message}");
             }
         }
-        
         
         public void ClearPendingState()
         {
@@ -201,7 +204,7 @@ namespace UnityAIHelper.Editor
         protected void RegisterTool<T>() where T : IUnityTool, new()
         {
             var tool = new T();
-            toolRegistry.RegisterTool(tool,toolExecutor);
+            toolRegistry.RegisterTool(tool, toolExecutor);
         }
 
         /// <summary>
@@ -224,5 +227,18 @@ namespace UnityAIHelper.Editor
         /// 检查是否有未完成的对话
         /// </summary>
         public bool HasPendingMessage => chatbotService.IsInterrupted;
+
+        /// <summary>
+        /// 更新设置
+        /// </summary>
+        public virtual void UpdateSettings(string name, string description, string systemPrompt)
+        {
+            this.name = name;
+            this.description = description;
+            this.systemPrompt = systemPrompt;
+            
+            // 清空历史记录并重新初始化会话
+            ClearHistory();
+        }
     }
 }

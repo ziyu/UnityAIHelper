@@ -14,7 +14,7 @@ namespace UnityAIHelper.Editor
     /// </summary>
     public class UnityHelperChatbot : ChatbotBase
     {
-        private const string SystemPromptTemplate = @"你是一个Unity开发助手，可以帮助用户完成Unity相关的开发任务。你可以：
+        private const string DefaultSystemPrompt = @"你是一个Unity开发助手，可以帮助用户完成Unity相关的开发任务。你可以：
 
 1. 创建、修改、删除GameObject和Component
 2. 管理Unity资源和AssetBundle
@@ -57,18 +57,19 @@ namespace UnityAIHelper.Editor
 请根据用户的需求，选择合适的工具来完成任务。大多数功能需求都通过执行临时代码实现。需要创建代码通过CreateScript工具实现。如果遇到问题，及时报告错误并提供解决方案。";
 
         public override string Id => "unity_helper";
-        public override string Name => "Unity助手";
-        public override string Description => "Unity开发助手，可以帮助完成Unity相关的开发任务";
 
         public UnityHelperChatbot(bool useStreaming = false, Action<ChatMessage> streamingCallback = null)
             : base(string.Empty, useStreaming, streamingCallback)
         {
+            name = "Unity助手";
+            description = "Unity开发助手，可以帮助完成Unity相关的开发任务";
+            systemPrompt = DefaultSystemPrompt;
         }
 
         protected override string GetSystemPrompt(string basePrompt)
         {
             var toolsDescription = GenerateToolsDescription();
-            return string.Format(SystemPromptTemplate, toolsDescription);
+            return string.Format(systemPrompt, toolsDescription);
         }
 
         private string GenerateToolsDescription()
@@ -119,6 +120,12 @@ namespace UnityAIHelper.Editor
         public IUnityTool[] GetAvailableTools()
         {
             return toolRegistry.GetAllTools().ToArray();
+        }
+
+        public override void UpdateSettings(string name, string description, string systemPrompt)
+        {
+            base.UpdateSettings(name, description, 
+                string.IsNullOrEmpty(systemPrompt) ? DefaultSystemPrompt : systemPrompt);
         }
     }
 }

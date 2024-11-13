@@ -49,6 +49,21 @@ namespace UnityAIHelper.Editor
             return chatbot;
         }
 
+        public void UpdateCustomChatbot(string id, string name, string description, string systemPrompt)
+        {
+            if (!chatbots.ContainsKey(id))
+                throw new ArgumentException($"Chatbot with ID '{id}' does not exist");
+
+            if (chatbots[id] is CustomChatbot customBot)
+            {
+                customBot.UpdateSettings(name, description, systemPrompt);
+            }
+            else
+            {
+                throw new ArgumentException($"Chatbot with ID '{id}' is not a custom chatbot");
+            }
+        }
+
         public void SwitchChatbot(string id)
         {
             if (!chatbots.ContainsKey(id))
@@ -82,19 +97,45 @@ namespace UnityAIHelper.Editor
     public class CustomChatbot : ChatbotBase
     {
         private readonly string id;
-        private readonly string name;
-        private readonly string description;
+        private string name;
+        private string description;
+        private string systemPrompt;
+        private bool showSystemMessages = false;
 
         public override string Id => id;
         public override string Name => name;
         public override string Description => description;
 
+        public bool ShowSystemMessages => showSystemMessages;
+        public string SystemPrompt => systemPrompt;
+
         public CustomChatbot(string id, string name, string description, string systemPrompt, bool useStreaming = false) 
-            : base(systemPrompt, useStreaming: useStreaming, useSessionStorage: true) // 启用历史记录存储和streaming
+            : base(systemPrompt, useStreaming: useStreaming, useSessionStorage: true)
         {
             this.id = id;
             this.name = name;
             this.description = description;
+            this.systemPrompt = systemPrompt;
+        }
+
+        public void UpdateSettings(string name, string description, string systemPrompt)
+        {
+            this.name = name;
+            this.description = description;
+            this.systemPrompt = systemPrompt;
+            
+            // 清空历史记录并重新初始化会话
+            ClearHistory();
+        }
+
+        public void SetShowSystemMessages(bool show)
+        {
+            showSystemMessages = show;
+        }
+
+        protected override string GetSystemPrompt(string basePrompt)
+        {
+            return systemPrompt;
         }
     }
 }

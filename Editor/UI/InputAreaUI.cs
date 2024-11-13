@@ -4,140 +4,123 @@ using System;
 
 namespace UnityAIHelper.Editor.UI
 {
-    /// <summary>
-    /// 输入区域UI组件
-    /// </summary>
     public class InputAreaUI
     {
         private readonly AIHelperWindow window;
-        private GUIStyle messageStyle;
-        
-        // 输入框高度相关
-        private float inputAreaHeight = 60f;
-        private const float MIN_INPUT_HEIGHT = 60f;
-        private const float MAX_INPUT_HEIGHT = 200f;
-        private bool isResizingInput = false;
-        private Rect resizeHandleRect;
-
-        // 输入内容
         private string userInput = "";
+        private GUIStyle buttonStyle;
+        private ResizableTextArea textArea;
 
         public event Action<string> OnSendMessage;
 
         public InputAreaUI(AIHelperWindow window)
         {
             this.window = window;
- 
+            textArea = new ResizableTextArea(window, 60f, ResizableTextArea.DragPosition.Top, false);
         }
 
-        void InitStyles()
+        private void InitStyles()
         {
-            if(messageStyle!=null)return;
-            messageStyle = new GUIStyle(EditorStyles.textArea)
+            if (buttonStyle == null)
             {
-                wordWrap = true,
-                richText = true
-            };
+                buttonStyle = new GUIStyle(EditorStyles.miniButton)
+                {
+                    fixedWidth = 60,
+                    fixedHeight = 25
+                };
+            }
         }
 
         public void Draw(float height, bool isProcessing)
         {
             InitStyles();
-            // 使用GUILayoutUtility.GetRect确保正确的布局位置
-            Rect inputAreaRect = GUILayoutUtility.GetRect(window.position.width, height);
-            GUI.Box(inputAreaRect, "", EditorStyles.helpBox);
 
-            // 调整内部元素的位置
-            inputAreaRect.x += 5;
-            inputAreaRect.y += 5;
-            inputAreaRect.width -= 70; // 为发送按钮留出空间
-            inputAreaRect.height -= 10;
-
-            GUI.enabled = !isProcessing;
-
-            // 处理回车键
-            var currentEvent = Event.current;
-            bool shouldSend = false;
-            
-            if (currentEvent.type == EventType.KeyDown && 
-                currentEvent.keyCode == KeyCode.Return)
+            // 主容器
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.Height(height));
             {
-                if (currentEvent.shift)
+                // 水平布局包含输入区域和按钮
+                EditorGUILayout.BeginHorizontal();
                 {
-                    // Shift+Enter插入换行
-                    userInput += "\n";
+                    // 输入区域容器
+                    EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+                    {
+                        // 获取文本区域的矩形
+                        Rect textAreaRect = EditorGUILayout.GetControlRect(false, textArea.GetHeight());
+                        
+                        // 使用ResizableTextArea
+                        GUI.enabled = !isProcessing;
+                        string newInput = textArea.Draw(textAreaRect, userInput);
+                        if (newInput != userInput)
+                        {
+                            userInput = newInput;
+                            GUI.changed = true;
+                        }
+                        GUI.enabled = true;
+                    }
+                    EditorGUILayout.EndVertical();
+
+                    // 发送按钮
+                    EditorGUILayout.BeginVertical(GUILayout.Width(70));
+                    {
+                        if (GUILayout.Button("发送", buttonStyle))
+                        {
+                            SendMessage();
+                        }
+
+                        // 处理快捷键
+                        var e = Event.current;
+                        if (e.type == EventType.KeyDown && 
+                            e.keyCode == KeyCode.Return && 
+                            !e.shift && 
+                            !isProcessing && 
+                            !string.IsNullOrEmpty(userInput.Trim()) &&
+                            EditorWindow.focusedWindow == window)
+                        {
+                            SendMessage();
+                            e.Use();
+                        }
+                    }
+                    EditorGUILayout.EndVertical();
                 }
-                else if (!string.IsNullOrEmpty(userInput) && 
-                         EditorWindow.focusedWindow == window)
-                {
-                    // 普通Enter发送消息
-                    shouldSend = true;
-                }
-                currentEvent.Use();
+                EditorGUILayout.EndHorizontal();
             }
+            EditorGUILayout.EndVertical();
 
-            // 绘制输入框
-            userInput = GUI.TextArea(inputAreaRect, userInput, messageStyle);
-
-            // 绘制发送按钮
-            Rect sendButtonRect = new Rect(inputAreaRect.xMax + 5, inputAreaRect.y, 60, 30);
-            if ((GUI.Button(sendButtonRect, "发送") || shouldSend) && !string.IsNullOrEmpty(userInput))
+            // 如果GUI发生改变，重绘窗口
+            if (GUI.changed)
             {
-                string message = userInput;
-                userInput = "";
-                OnSendMessage?.Invoke(message);
+                window.Repaint();
             }
-
-            GUI.enabled = true;
-
-            // 绘制拖拽手柄
-            resizeHandleRect = new Rect(inputAreaRect.x, inputAreaRect.y - 5, inputAreaRect.width + 65, 5);
-            EditorGUIUtility.AddCursorRect(resizeHandleRect, MouseCursor.ResizeVertical);
-
-            HandleInputAreaResize();
         }
 
-        private void HandleInputAreaResize()
+        private void SendMessage()
         {
-            var currentEvent = Event.current;
-            
-            switch (currentEvent.type)
+            string trimmedInput = userInput.Trim();
+            if (!string.IsNullOrEmpty(trimmedInput))
             {
-                case EventType.MouseDown:
-                    if (resizeHandleRect.Contains(currentEvent.mousePosition))
-                    {
-                        isResizingInput = true;
-                        currentEvent.Use();
-                    }
-                    break;
-
-                case EventType.MouseDrag:
-                    if (isResizingInput)
-                    {
-                        inputAreaHeight = Mathf.Clamp(
-                            inputAreaHeight - currentEvent.delta.y,
-                            MIN_INPUT_HEIGHT,
-                            MAX_INPUT_HEIGHT
-                        );
-                        currentEvent.Use();
-                        window.Repaint();
-                    }
-                    break;
-
-                case EventType.MouseUp:
-                    isResizingInput = false;
-                    break;
+                string message = trimmedInput;
+                userInput = "";
+                OnSendMessage?.Invoke(message);
+                GUI.FocusControl(null);
+                window.Repaint();
             }
         }
 
         public float GetHeight()
         {
-            return inputAreaHeight;
+            return textArea.GetHeight() + 5; // 添加边距
         }
 
         public void Clear()
         {
             userInput = "";
+            GUI.FocusControl(null);
+            window.Repaint();
+        }
+
+        public void Focus()
+        {
+            window.Repaint();
         }
     }
 }

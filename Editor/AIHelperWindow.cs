@@ -15,10 +15,12 @@ namespace UnityAIHelper.Editor
         private InputAreaUI inputAreaUI;
         private ToolbarUI toolbarUI;
         private NewChatbotUI newChatbotUI;
+        private ChatbotSettingsUI settingsUI;
 
         // 状态
         private bool isProcessing = false;
         private bool isCreatingNew = false;
+        private bool isShowingSettings = false;
         private CancellationTokenSource cancellationTokenSource;
         private const float STATUS_HEIGHT = 30f;
         private GUIStyle statusStyle;
@@ -40,13 +42,16 @@ namespace UnityAIHelper.Editor
             inputAreaUI = new InputAreaUI(this);
             toolbarUI = new ToolbarUI(this);
             newChatbotUI = new NewChatbotUI(this);
+            settingsUI = new ChatbotSettingsUI(this);
 
             // 绑定事件
             inputAreaUI.OnSendMessage += SendMessage;
             toolbarUI.OnCreateNewChatbot += () => { isCreatingNew = true; Repaint(); };
             toolbarUI.OnClearHistory += () => { ChatbotManager.Instance.GetCurrentChatbot().ClearHistory(); Repaint(); };
+            toolbarUI.OnOpenSettings += () => { isShowingSettings = true; Repaint(); };
             newChatbotUI.OnCancel += () => { isCreatingNew = false; Repaint(); };
             newChatbotUI.OnCreate += CreateNewChatbot;
+            settingsUI.OnClose += () => { isShowingSettings = false; Repaint(); };
 
             // 初始化样式
             if (statusStyle == null)
@@ -90,7 +95,7 @@ namespace UnityAIHelper.Editor
             float totalHeight = position.height;
             float toolbarHeight = EditorStyles.toolbar.fixedHeight;
             float statusAreaHeight = isProcessing ? STATUS_HEIGHT : 0;
-            float inputAreaTotalHeight = inputAreaUI.GetHeight() + 20; // 20为边距
+            float inputAreaTotalHeight = inputAreaUI.GetHeight();
             float chatAreaHeight = totalHeight - toolbarHeight - inputAreaTotalHeight - statusAreaHeight;
 
             toolbarUI.Draw();
@@ -101,21 +106,29 @@ namespace UnityAIHelper.Editor
                 return;
             }
 
-            EditorGUILayout.BeginVertical();
-            
-            GUILayout.Space(toolbarHeight);
-            
+            if (isShowingSettings)
+            {
+                settingsUI.Draw();
+                return;
+            }
+
+            // 计算各个区域的位置
+            float currentY = toolbarHeight;
+
+            // 聊天区域
             var chatHistory = ChatbotManager.Instance.GetCurrentChatbot().GetChatHistory();
             chatAreaUI.Draw(chatAreaHeight, chatHistory, currentStreamingMessage, isStreaming);
-            
+            currentY += chatAreaHeight;
+
+            // 状态区域
             if (isProcessing)
             {
                 DrawStatusArea();
+                currentY += statusAreaHeight;
             }
-            
+
+            // 输入区域
             inputAreaUI.Draw(inputAreaTotalHeight, isProcessing);
-            
-            EditorGUILayout.EndVertical();
         }
 
         private void DrawStatusArea()

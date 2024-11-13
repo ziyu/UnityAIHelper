@@ -13,6 +13,7 @@ namespace UnityAIHelper.Editor.UI
 
         public event Action OnCreateNewChatbot;
         public event Action OnClearHistory;
+        public event Action OnOpenSettings;
 
         public ToolbarUI(AIHelperWindow window)
         {
@@ -43,7 +44,7 @@ namespace UnityAIHelper.Editor.UI
                 });
 
                 // 只有非默认chatbot才能删除
-                if (currentBot.Id != "UnityHelper")
+                if (currentBot.Id != "unity_helper")
                 {
                     menu.AddItem(new GUIContent("删除当前助手"), false, () =>
                     {
@@ -58,6 +59,14 @@ namespace UnityAIHelper.Editor.UI
                 }
 
                 menu.ShowAsContext();
+            }
+
+            GUILayout.FlexibleSpace();
+
+            // 设置按钮
+            if (GUILayout.Button("设置", EditorStyles.toolbarButton))
+            {
+                OnOpenSettings?.Invoke();
             }
 
             // 清空对话按钮
