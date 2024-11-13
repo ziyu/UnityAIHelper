@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEditor;
 using UnityLLMAPI.Models;
@@ -18,11 +19,27 @@ namespace UnityAIHelper.Editor.UI
         
         private GUIStyle messageStyle;
         private readonly GUIContent tempContent;
+        private readonly ToolCallUI toolCallUI;
+        
+        // 缓存过滤后的消息列表
+        private List<ChatMessage> filteredMessages;
+        private List<ChatMessage> toolResults;
+        private int lastMessageCount;
+        private ChatMessage lastStreamingMessage;
+        private bool lastIsStreaming;
+        
+        // UI常量
+        private const float MESSAGE_SPACING = 8f;
+        private const float TOOL_CALL_SPACING = 4f;
+        private const float CONTENT_PADDING = 8f;
 
         public ChatAreaUI(AIHelperWindow window)
         {
             this.window = window;
             tempContent = new GUIContent();
+            toolCallUI = new ToolCallUI();
+            filteredMessages = new List<ChatMessage>();
+            toolResults = new List<ChatMessage>();
         }
         
         void InitStyles()
@@ -35,43 +52,83 @@ namespace UnityAIHelper.Editor.UI
                 padding = new RectOffset(4, 4, 4, 4)
             };
         }
+        
+        /// <summary>
+        /// 检查并更新过滤后的消息列表和工具调用结果
+        /// </summary>
+        private void UpdateFilteredMessages(IReadOnlyList<ChatMessage> chatHistory, ChatMessage streamingMessage, bool isStreaming)
+        {
+            // 检查是否需要更新
+            if (chatHistory.Count == lastMessageCount && 
+                streamingMessage == lastStreamingMessage && 
+                isStreaming == lastIsStreaming)
+            {
+                return;
+            }
+            
+            // 更新缓存状态
+            lastMessageCount = chatHistory.Count;
+            lastStreamingMessage = streamingMessage;
+            lastIsStreaming = isStreaming;
+            
+            // 清空并重新填充列表
+            filteredMessages.Clear();
+            toolResults.Clear();
+            
+            // 分类消息
+            foreach (var message in chatHistory)
+            {
+                if (message.role == "tool")
+                {
+                    toolResults.Add(message);
+                }
+                else if (message.role != "system")
+                {
+                    filteredMessages.Add(message);
+                }
+            }
+            
+            // 如果有streaming消息且不是系统消息或工具执行结果，添加到过滤列表
+            if (isStreaming && streamingMessage != null && 
+                streamingMessage.role != "system" && streamingMessage.role != "tool")
+            {
+                filteredMessages.Add(streamingMessage);
+            }
+        }
+        
+        /// <summary>
+        /// 获取工具调用对应的执行结果
+        /// </summary>
+        private ChatMessage GetToolCallResult(ToolCall toolCall)
+        {
+            return toolResults.FirstOrDefault(r => 
+                r.role == "tool" && 
+                r.tool_call_id == toolCall.id);
+        }
 
         public void Draw(float height, IReadOnlyList<ChatMessage> chatHistory, ChatMessage streamingMessage = null, bool isStreaming = false)
         {
             InitStyles();
+            
+            // 更新过滤后的消息列表和工具调用结果
+            UpdateFilteredMessages(chatHistory, streamingMessage, isStreaming);
 
             // 使用固定的宽度
             float viewWidth = cachedViewWidth;
             float contentWidth = viewWidth - 16; // 预留滚动条宽度
 
-            // 创建固定大小的滚动视图区域
-            Rect scrollViewRect = GUILayoutUtility.GetRect(viewWidth, height);
-            Rect contentRect = new Rect(0, 0, contentWidth, 0);
-
-            float totalContentHeight = 0;
-            float messageSpacing = 5f; // 消息之间的间距
-
             // 计算内容总高度
-            for (int i = 0; i < chatHistory.Count; i++)
-            {
-                var message = chatHistory[i];
-                if (message.role == "system") continue;
-                
-                totalContentHeight += CalculateMessageHeight(message, contentWidth);
-                if (i < chatHistory.Count - 1) totalContentHeight += messageSpacing;
-            }
+            float totalContentHeight = CalculateTotalContentHeight(contentWidth);
 
-            // 如果有streaming消息且不是系统消息，添加其高度
-            if (isStreaming && streamingMessage != null && streamingMessage.role != "system")
-            {
-                totalContentHeight += messageSpacing;
-                totalContentHeight += CalculateMessageHeight(streamingMessage, contentWidth);
-            }
+            // 确保内容高度至少等于视图高度
+            totalContentHeight = Mathf.Max(totalContentHeight, height);
 
-            contentRect.height = totalContentHeight;
+            // 创建滚动视图区域
+            Rect scrollViewRect = EditorGUILayout.GetControlRect(false, height);
+            Rect contentRect = new Rect(0, 0, contentWidth, totalContentHeight);
 
             // 检查是否需要滚动到底部
-            if (shouldScrollToBottom || Mathf.Abs(totalContentHeight - lastContentHeight) > 1)
+            if (shouldScrollToBottom)
             {
                 scrollPosition.y = totalContentHeight - height;
                 shouldScrollToBottom = false;
@@ -79,53 +136,87 @@ namespace UnityAIHelper.Editor.UI
             }
 
             // 绘制滚动视图
-            scrollPosition = GUI.BeginScrollView(scrollViewRect, scrollPosition, contentRect);
+            scrollPosition = GUI.BeginScrollView(scrollViewRect, scrollPosition, contentRect, false, true);
 
             float currentY = 0;
-            for (int i = 0; i < chatHistory.Count; i++)
+            for (int i = 0; i < filteredMessages.Count; i++)
             {
-                var message = chatHistory[i];
-                if (message.role == "system") continue;
+                float messageHeight = DrawMessage(filteredMessages[i], currentY, contentWidth);
+                currentY += messageHeight;
                 
-                float messageHeight = DrawMessage(message, currentY, contentWidth);
-                currentY += messageHeight + messageSpacing;
-            }
-
-            // 绘制streaming消息
-            if (isStreaming && streamingMessage != null && streamingMessage.role != "system")
-            {
-                DrawMessage(streamingMessage, currentY, contentWidth);
+                if (i < filteredMessages.Count - 1)
+                {
+                    currentY += MESSAGE_SPACING;
+                }
             }
 
             GUI.EndScrollView();
+            
+            // 处理滚轮事件
+            if (Event.current.type == EventType.ScrollWheel && scrollViewRect.Contains(Event.current.mousePosition))
+            {
+                scrollPosition.y += Event.current.delta.y * 20f;
+                scrollPosition.y = Mathf.Clamp(scrollPosition.y, 0, totalContentHeight - height);
+                Event.current.Use();
+                window.Repaint();
+            }
+        }
+        
+        /// <summary>
+        /// 计算内容总高度
+        /// </summary>
+        private float CalculateTotalContentHeight(float width)
+        {
+            if (filteredMessages.Count == 0) return 0;
+            
+            float totalHeight = 0;
+            
+            // 计算所有消息的高度和间距
+            for (int i = 0; i < filteredMessages.Count; i++)
+            {
+                totalHeight += CalculateMessageHeight(filteredMessages[i], width);
+                
+                // 除了最后一条消息，每条消息后都添加间距
+                if (i < filteredMessages.Count - 1)
+                {
+                    totalHeight += MESSAGE_SPACING;
+                }
+            }
+            
+            return totalHeight;
         }
 
         private float CalculateMessageHeight(ChatMessage message, float width)
         {
             float height = 20; // 发送者标签高度
+            height += CONTENT_PADDING; // 顶部padding
 
             // 计算消息内容高度
-            tempContent.text = message.content ?? "";
-            height += messageStyle.CalcHeight(tempContent, width - 16);
+            if (!string.IsNullOrEmpty(message.content))
+            {
+                tempContent.text = message.content;
+                height += messageStyle.CalcHeight(tempContent, width - 16);
+            }
 
             // 如果有工具调用，计算工具调用信息高度
-            if (message.tool_calls != null)
+            if (message.tool_calls != null && message.tool_calls.Length > 0)
             {
-                foreach (var toolCall in message.tool_calls)
+                for (int i = 0; i < message.tool_calls.Length; i++)
                 {
-                    height += 20; // 工具调用标签高度
-                    tempContent.text = $"{toolCall.function.name}: {toolCall.function.arguments}";
-                    height += messageStyle.CalcHeight(tempContent, width - 16);
+                    if (i > 0) height += TOOL_CALL_SPACING;
+                    var result = GetToolCallResult(message.tool_calls[i]);
+                    height += toolCallUI.CalculateContentHeight(message.tool_calls[i], width - 16, result);
                 }
             }
 
-            return height + 8; // 添加适当的边距
+            height += CONTENT_PADDING; // 底部padding
+            return height;
         }
 
         private float DrawMessage(ChatMessage message, float y, float width)
         {
             float startY = y;
-            float currentY = y + 4;
+            float currentY = y + CONTENT_PADDING;
             
             // 绘制发送者
             var style = new GUIStyle(EditorStyles.boldLabel);
@@ -134,29 +225,27 @@ namespace UnityAIHelper.Editor.UI
             currentY += 20;
 
             // 绘制消息内容
-            tempContent.text = message.content ?? "";
-            float contentHeight = messageStyle.CalcHeight(tempContent, width - 16);
-            GUI.TextArea(new Rect(8, currentY, width - 16, contentHeight), message.content ?? "", messageStyle);
-            currentY += contentHeight;
-
-            // 如果有工具调用，绘制工具调用信息
-            if (message.tool_calls != null)
+            if (!string.IsNullOrEmpty(message.content))
             {
-                foreach (var toolCall in message.tool_calls)
-                {
-                    currentY += 4;
-                    GUI.Label(new Rect(8, currentY, width - 16, 20), "执行命令:", EditorStyles.boldLabel);
-                    currentY += 20;
+                tempContent.text = message.content;
+                float contentHeight = messageStyle.CalcHeight(tempContent, width - 16);
+                GUI.TextArea(new Rect(8, currentY, width - 16, contentHeight), message.content, messageStyle);
+                currentY += contentHeight;
+            }
 
-                    tempContent.text = $"{toolCall.function.name}: {toolCall.function.arguments}";
-                    float toolCallHeight = messageStyle.CalcHeight(tempContent, width - 16);
-                    GUI.TextArea(new Rect(8, currentY, width - 16, toolCallHeight), 
-                        $"{toolCall.function.name}: {toolCall.function.arguments}", messageStyle);
+            // 如果有工具调用，使用ToolCallUI绘制
+            if (message.tool_calls != null && message.tool_calls.Length > 0)
+            {
+                for (int i = 0; i < message.tool_calls.Length; i++)
+                {
+                    if (i > 0) currentY += TOOL_CALL_SPACING;
+                    var result = GetToolCallResult(message.tool_calls[i]);
+                    float toolCallHeight = toolCallUI.Draw(message.tool_calls[i], currentY, width - 16, result);
                     currentY += toolCallHeight;
                 }
             }
 
-            return currentY - startY + 4;
+            return currentY - startY + CONTENT_PADDING;
         }
 
         private string GetMessagePrefix(string role)
@@ -165,7 +254,6 @@ namespace UnityAIHelper.Editor.UI
             {
                 "user" => "你:",
                 "assistant" => "AI:",
-                "tool" => "工具执行结果:",
                 _ => role + ":"
             };
         }
@@ -176,7 +264,6 @@ namespace UnityAIHelper.Editor.UI
             {
                 "user" => Color.blue,
                 "assistant" => Color.green,
-                "tool" => Color.cyan,
                 _ => Color.white
             };
         }
