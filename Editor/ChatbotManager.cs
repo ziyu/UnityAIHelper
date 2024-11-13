@@ -30,13 +30,13 @@ namespace UnityAIHelper.Editor
 
         private ChatbotManager()
         {
-            // 创建默认的Unity助手chatbot
-            var unityHelper = new UnityHelperChatbot();
+            // 创建默认的Unity助手chatbot，启用streaming
+            var unityHelper = new UnityHelperChatbot(useStreaming: true);
             chatbots.Add(unityHelper.Id, unityHelper);
             currentChatbotId = unityHelper.Id;
         }
 
-        public IChatbot CreateCustomChatbot(string id, string name,string description, string systemPrompt)
+        public IChatbot CreateCustomChatbot(string id, string name, string description, string systemPrompt)
         {
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Chatbot ID cannot be empty");
@@ -44,7 +44,7 @@ namespace UnityAIHelper.Editor
             if (chatbots.ContainsKey(id))
                 throw new ArgumentException($"Chatbot with ID '{id}' already exists");
 
-            var chatbot = new CustomChatbot(id, name, description,systemPrompt);
+            var chatbot = new CustomChatbot(id, name, description, systemPrompt, useStreaming: true);
             chatbots.Add(id, chatbot);
             return chatbot;
         }
@@ -89,8 +89,8 @@ namespace UnityAIHelper.Editor
         public override string Name => name;
         public override string Description => description;
 
-        public CustomChatbot(string id, string name,string description, string systemPrompt) 
-            : base(systemPrompt, useSessionStorage: true) // 启用历史记录存储
+        public CustomChatbot(string id, string name, string description, string systemPrompt, bool useStreaming = false) 
+            : base(systemPrompt, useStreaming: useStreaming, useSessionStorage: true) // 启用历史记录存储和streaming
         {
             this.id = id;
             this.name = name;

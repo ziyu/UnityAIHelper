@@ -42,6 +42,10 @@ namespace UnityAIHelper.Editor
         private const float STATUS_HEIGHT = 30f;
         private GUIStyle statusStyle;
 
+        // Streaming相关
+        private ChatMessage currentStreamingMessage;
+        private bool isStreaming = false;
+
         [MenuItem("Window/AI Helper")]
         public static void ShowWindow()
         {
@@ -79,13 +83,28 @@ namespace UnityAIHelper.Editor
                 isProcessing = true;
                 Repaint();
             }
+
+            // 订阅streaming事件
+            currentBot.OnStreamingMessage += OnStreamingMessageReceived;
         }
 
         private void OnDisable()
         {
+            // 取消订阅streaming事件
+            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
+            currentBot.OnStreamingMessage -= OnStreamingMessageReceived;
+
             // 窗口关闭时确保取消任何进行中的请求
             cancellationTokenSource?.Cancel();
             cancellationTokenSource?.Dispose();
+        }
+
+        private void OnStreamingMessageReceived(ChatMessage message)
+        {
+            currentStreamingMessage = message;
+            isStreaming = true;
+            shouldScrollToBottom = true;
+            Repaint();
         }
 
         private void OnGUI()
@@ -149,7 +168,7 @@ namespace UnityAIHelper.Editor
 
             // 状态文本区域
             Rect textRect = new Rect(statusRect.x + 10, statusRect.y, statusRect.width - 200, STATUS_HEIGHT);
-            GUI.Label(textRect, "AI思考中...", statusStyle);
+            GUI.Label(textRect, isStreaming ? "AI正在回答..." : "AI思考中...", statusStyle);
 
             var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
             if (currentBot.HasPendingMessage)
@@ -305,6 +324,13 @@ namespace UnityAIHelper.Editor
                 totalContentHeight += 10; // 消息间距
             }
 
+            // 如果有streaming消息，添加其高度
+            if (isStreaming && currentStreamingMessage != null)
+            {
+                totalContentHeight += CalculateMessageHeight(currentStreamingMessage, contentWidth - 40);
+                totalContentHeight += 10;
+            }
+
             contentRect.height = totalContentHeight;
 
             // 检查是否需要滚动到底部
@@ -323,6 +349,12 @@ namespace UnityAIHelper.Editor
             {
                 float messageHeight = DrawMessage(message, currentY, contentWidth - 40);
                 currentY += messageHeight + 5;
+            }
+
+            // 绘制streaming消息
+            if (isStreaming && currentStreamingMessage != null)
+            {
+                DrawMessage(currentStreamingMessage, currentY, contentWidth - 40);
             }
 
             GUI.EndScrollView();
@@ -503,6 +535,8 @@ namespace UnityAIHelper.Editor
             {
                 currentBot.ClearPendingState();
                 isProcessing = false;
+                isStreaming = false;
+                currentStreamingMessage = null;
                 Repaint();
             }
             else if (isProcessing)
@@ -510,6 +544,8 @@ namespace UnityAIHelper.Editor
                 cancellationTokenSource?.Cancel();
                 cancellationTokenSource = null;
                 isProcessing = false;
+                isStreaming = false;
+                currentStreamingMessage = null;
                 Repaint();
             }
         }
@@ -522,6 +558,8 @@ namespace UnityAIHelper.Editor
             userInput = "";
             isProcessing = true;
             shouldScrollToBottom = true;
+            isStreaming = false;
+            currentStreamingMessage = null;
 
             // 创建新的CancellationTokenSource
             cancellationTokenSource?.Dispose();
@@ -544,7 +582,10 @@ namespace UnityAIHelper.Editor
             }
             finally
             {
+                cancellationTokenSource = null;
                 isProcessing = false;
+                isStreaming = false;
+                currentStreamingMessage = null;
                 Repaint();
             }
         }
@@ -572,7 +613,10 @@ namespace UnityAIHelper.Editor
             }
             finally
             {
+                cancellationTokenSource = null;
                 isProcessing = false;
+                isStreaming = false;
+                currentStreamingMessage = null;
                 Repaint();
             }
         }
