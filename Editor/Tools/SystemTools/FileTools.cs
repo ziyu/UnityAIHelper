@@ -22,6 +22,11 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
             // 处理相对路径
             if (!Path.IsPathRooted(path))
             {
+                if (path.StartsWith("Assets"))
+                {
+                    path = path.Substring(6);
+                }
+
                 path = Path.Combine(Application.dataPath, path);
             }
             

@@ -41,7 +41,7 @@ namespace UnityAIHelper.Editor
         public override string Description => "Unity组件生成专家,负责生成高质量的Unity组件脚本";
 
         public ComponentGeneratorChatbot(Action<ChatMessage> streamingCallback = null) 
-            : base(SYSTEM_PROMPT, useStreaming: true, streamingCallback: streamingCallback, useSessionStorage: false)
+            : base(SYSTEM_PROMPT,useTools:false,  useStreaming: true, streamingCallback: streamingCallback, useSessionStorage: false)
         {
         }
     }

@@ -31,7 +31,7 @@ namespace UnityAIHelper.Editor.UI
             }
         }
 
-        public void Draw(float height, bool isProcessing)
+        public void Draw(float height, bool isProcessing, string buttonText = "发送", Action customCallback = null)
         {
             InitStyles();
 
@@ -62,9 +62,16 @@ namespace UnityAIHelper.Editor.UI
                     // 发送按钮
                     EditorGUILayout.BeginVertical(GUILayout.Width(70));
                     {
-                        if (GUILayout.Button("发送", buttonStyle))
+                        if (GUILayout.Button(buttonText, buttonStyle))
                         {
-                            SendMessage();
+                            if (customCallback != null)
+                            {
+                                customCallback();
+                            }
+                            else
+                            {
+                                SendMessage();
+                            }
                         }
 
                         // 处理快捷键
@@ -76,7 +83,14 @@ namespace UnityAIHelper.Editor.UI
                             !string.IsNullOrEmpty(userInput.Trim()) &&
                             EditorWindow.focusedWindow == window)
                         {
-                            SendMessage();
+                            if (customCallback != null)
+                            {
+                                customCallback();
+                            }
+                            else
+                            {
+                                SendMessage();
+                            }
                             e.Use();
                         }
                     }
@@ -121,6 +135,23 @@ namespace UnityAIHelper.Editor.UI
         public void Focus()
         {
             window.Repaint();
+        }
+
+        /// <summary>
+        /// 设置输入文本
+        /// </summary>
+        public void SetText(string text)
+        {
+            userInput = text ?? "";
+            window.Repaint();
+        }
+
+        /// <summary>
+        /// 获取当前输入文本
+        /// </summary>
+        public string GetText()
+        {
+            return userInput;
         }
     }
 }

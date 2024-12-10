@@ -3,6 +3,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 using UnityLLMAPI.Services;
 using UnityLLMAPI.Config;
 using UnityLLMAPI.Models;
@@ -29,7 +30,7 @@ namespace UnityAIHelper.Editor
         
         public event Action<ChatMessage> OnStreamingMessage;
 
-        protected ChatbotBase(string systemPrompt, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
+        protected ChatbotBase(string systemPrompt,bool useTools=true, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
         {
             this.systemPrompt = systemPrompt;
 
@@ -49,20 +50,23 @@ namespace UnityAIHelper.Editor
             // 3. 创建OpenAI服务
             var openAIService = new OpenAIService(openAIConfig);
 
-            // 4. 初始化工具系统
-            toolRegistry = new ToolRegistry();
-            toolExecutor = new ToolExecutor(toolRegistry);
+            if (useTools)
+            {
+                // 4. 初始化工具系统
+                toolRegistry = new ToolRegistry();
+                toolExecutor = new ToolExecutor(toolRegistry);
+                
+                // 5. 注册工具
+                RegisterTools();
+            }
             
-            // 5. 注册工具
-            RegisterTools();
-
             // 6. 配置ChatBot
             var chatbotConfig = new ChatbotConfig
             {
-                systemPrompt = GetSystemPrompt(systemPrompt),
+                systemPrompt = systemPrompt,
                 useStreaming = useStreaming,
                 defaultModel = openAIConfig.defaultModel,
-                toolSet = toolRegistry.LLMToolSet // 使用工具注册表中的LLM工具集
+                toolSet = toolRegistry?.LLMToolSet // 使用工具注册表中的LLM工具集
             };
 
             if (useStreaming)
@@ -84,14 +88,6 @@ namespace UnityAIHelper.Editor
             //8. 新建ChatbotService
             chatbotService = session == null ? new ChatbotService(openAIService, chatbotConfig) : new ChatbotService(openAIService, chatbotConfig, session);
             chatbotService.StateChanged += OnChatStateChanged;
-        }
-
-        /// <summary>
-        /// 获取系统提示词
-        /// </summary>
-        protected virtual string GetSystemPrompt(string basePrompt)
-        {
-            return basePrompt;
         }
 
         void OnStreamingCallBack(ChatMessage chatMessage)
@@ -132,14 +128,64 @@ namespace UnityAIHelper.Editor
             return response;
         }
 
-        public virtual IReadOnlyList<ChatMessage> GetChatHistory()
+        public virtual IReadOnlyList<ChatMessageInfo> GetChatHistory()
         {
-            return chatbotService.Messages;
+            return chatbotService.GetAllMessageInfos();
         }
 
         public virtual void ClearHistory()
         {
             chatbotService.ClearHistory();
+            SaveSession();
+        }
+
+        /// <summary>
+        /// 更新消息内容
+        /// </summary>
+        public virtual void UpdateMessage(ChatMessageInfo messageInfo, string newContent)
+        {
+            if (messageInfo == null)
+                throw new ArgumentNullException(nameof(messageInfo));
+
+            if (string.IsNullOrEmpty(newContent))
+                throw new ArgumentException("消息内容不能为空", nameof(newContent));
+
+            // 只允许编辑用户消息
+            if (messageInfo.message.role != "user")
+                throw new InvalidOperationException("只能编辑用户消息");
+
+            var messages = chatbotService.Session.messages;
+            var index = messages.FindIndex(m => m.messageId == messageInfo.messageId);
+            
+            if (index == -1)
+                throw new InvalidOperationException("未找到指定消息");
+
+            // 更新消息内容
+            messageInfo.message.content = newContent;
+            messageInfo.timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            
+            
+            chatbotService.ClearPending();
+            // 移除该消息之后的所有消息
+            if (index < messages.Count - 1)
+            {
+                messages.RemoveRange(index + 1, messages.Count - index - 1);
+            }
+            
+            SaveSession();
+        }
+
+        /// <summary>
+        /// 删除消息
+        /// </summary>
+        public virtual void DeleteMessage(ChatMessageInfo messageInfo)
+        {
+            if (messageInfo == null)
+                throw new ArgumentNullException(nameof(messageInfo));
+
+            chatbotService.DeleteMessage(messageInfo.messageId);
+            
+            SaveSession();
         }
 
         /// <summary>
@@ -203,6 +249,7 @@ namespace UnityAIHelper.Editor
         /// </summary>
         protected void RegisterTool<T>() where T : IUnityTool, new()
         {
+            if(toolRegistry==null)return;
             var tool = new T();
             toolRegistry.RegisterTool(tool, toolExecutor);
         }
@@ -212,7 +259,7 @@ namespace UnityAIHelper.Editor
         /// </summary>
         protected IUnityTool GetTool(string name)
         {
-            return toolRegistry.GetTool(name);
+            return toolRegistry?.GetTool(name);
         }
 
         /// <summary>
@@ -220,7 +267,7 @@ namespace UnityAIHelper.Editor
         /// </summary>
         protected IEnumerable<IUnityTool> GetToolsByType(ToolType type)
         {
-            return toolRegistry.GetToolsByType(type);
+            return toolRegistry?.GetToolsByType(type);
         }
 
         /// <summary>

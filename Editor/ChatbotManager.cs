@@ -100,13 +100,10 @@ namespace UnityAIHelper.Editor
         private string name;
         private string description;
         private string systemPrompt;
-        private bool showSystemMessages = false;
 
         public override string Id => id;
         public override string Name => name;
         public override string Description => description;
-
-        public bool ShowSystemMessages => showSystemMessages;
         public string SystemPrompt => systemPrompt;
 
         public CustomChatbot(string id, string name, string description, string systemPrompt, bool useStreaming = false) 
@@ -126,16 +123,6 @@ namespace UnityAIHelper.Editor
             
             // 清空历史记录并重新初始化会话
             ClearHistory();
-        }
-
-        public void SetShowSystemMessages(bool show)
-        {
-            showSystemMessages = show;
-        }
-
-        protected override string GetSystemPrompt(string basePrompt)
-        {
-            return systemPrompt;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -18,11 +19,12 @@ namespace UnityAIHelper.Editor.UI
         private float cachedViewWidth = 0f;
         
         private GUIStyle messageStyle;
+        private GUIStyle timeStyle;
         private readonly GUIContent tempContent;
         private readonly ToolCallUI toolCallUI;
         
         // 缓存过滤后的消息列表
-        private List<ChatMessage> filteredMessages;
+        private List<ChatMessageInfo> filteredMessages;
         private List<ChatMessage> toolResults;
         private int lastMessageCount;
         private ChatMessage lastStreamingMessage;
@@ -32,31 +34,43 @@ namespace UnityAIHelper.Editor.UI
         private const float MESSAGE_SPACING = 8f;
         private const float TOOL_CALL_SPACING = 4f;
         private const float CONTENT_PADDING = 8f;
+        private const float TIME_HEIGHT = 16f;
+
+        // 消息操作回调
+        public Action<ChatMessageInfo> OnEditMessage;
+        public Action<ChatMessageInfo> OnDeleteMessage;
 
         public ChatAreaUI(AIHelperWindow window)
         {
             this.window = window;
             tempContent = new GUIContent();
             toolCallUI = new ToolCallUI();
-            filteredMessages = new List<ChatMessage>();
+            filteredMessages = new List<ChatMessageInfo>();
             toolResults = new List<ChatMessage>();
         }
         
         void InitStyles()
         {
-            if(messageStyle!=null)return;
+            if(messageStyle != null) return;
+            
             messageStyle = new GUIStyle(EditorStyles.textArea)
             {
                 wordWrap = true,
                 richText = true,
                 padding = new RectOffset(4, 4, 4, 4)
             };
+
+            timeStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleRight,
+                normal = { textColor = new Color(0.7f, 0.7f, 0.7f) }
+            };
         }
         
         /// <summary>
         /// 检查并更新过滤后的消息列表和工具调用结果
         /// </summary>
-        private void UpdateFilteredMessages(IReadOnlyList<ChatMessage> chatHistory, ChatMessage streamingMessage, bool isStreaming)
+        private void UpdateFilteredMessages(IReadOnlyList<ChatMessageInfo> chatHistory, ChatMessage streamingMessage, bool isStreaming)
         {
             // 检查是否需要更新
             if (chatHistory.Count == lastMessageCount && 
@@ -76,15 +90,15 @@ namespace UnityAIHelper.Editor.UI
             toolResults.Clear();
             
             // 分类消息
-            foreach (var message in chatHistory)
+            foreach (var messageInfo in chatHistory)
             {
-                if (message.role == "tool")
+                if (messageInfo.message.role == "tool")
                 {
-                    toolResults.Add(message);
+                    toolResults.Add(messageInfo.message);
                 }
-                else if (message.role != "system")
+                else if (messageInfo.message.role != "system")
                 {
-                    filteredMessages.Add(message);
+                    filteredMessages.Add(messageInfo);
                 }
             }
             
@@ -92,7 +106,8 @@ namespace UnityAIHelper.Editor.UI
             if (isStreaming && streamingMessage != null && 
                 streamingMessage.role != "system" && streamingMessage.role != "tool")
             {
-                filteredMessages.Add(streamingMessage);
+                var streamingMessageInfo = new ChatMessageInfo(streamingMessage);
+                filteredMessages.Add(streamingMessageInfo);
             }
         }
         
@@ -106,7 +121,7 @@ namespace UnityAIHelper.Editor.UI
                 r.tool_call_id == toolCall.id);
         }
 
-        public void Draw(float height, IReadOnlyList<ChatMessage> chatHistory, ChatMessage streamingMessage = null, bool isStreaming = false)
+        public void Draw(float height, IReadOnlyList<ChatMessageInfo> chatHistory, ChatMessage streamingMessage = null, bool isStreaming = false)
         {
             InitStyles();
             
@@ -142,6 +157,11 @@ namespace UnityAIHelper.Editor.UI
             for (int i = 0; i < filteredMessages.Count; i++)
             {
                 float messageHeight = DrawMessage(filteredMessages[i], currentY, contentWidth);
+                
+                // 处理右键菜单
+                Rect messageRect = new Rect(0, currentY, contentWidth, messageHeight);
+                HandleContextMenu(messageRect, filteredMessages[i]);
+                
                 currentY += messageHeight;
                 
                 if (i < filteredMessages.Count - 1)
@@ -159,6 +179,28 @@ namespace UnityAIHelper.Editor.UI
                 scrollPosition.y = Mathf.Clamp(scrollPosition.y, 0, totalContentHeight - height);
                 Event.current.Use();
                 window.Repaint();
+            }
+        }
+
+        /// <summary>
+        /// 处理右键菜单
+        /// </summary>
+        private void HandleContextMenu(Rect messageRect, ChatMessageInfo messageInfo)
+        {
+            if (Event.current.type == EventType.MouseDown && 
+                Event.current.button == 1 && 
+                messageRect.Contains(Event.current.mousePosition))
+            {
+                var menu = new GenericMenu();
+                
+                if (messageInfo.message.role == "user") // 只允许编辑用户消息
+                {
+                    menu.AddItem(new GUIContent("编辑"), false, () => OnEditMessage?.Invoke(messageInfo));
+                }
+                menu.AddItem(new GUIContent("删除"), false, () => OnDeleteMessage?.Invoke(messageInfo));
+                
+                menu.ShowAsContext();
+                Event.current.Use();
             }
         }
         
@@ -186,26 +228,26 @@ namespace UnityAIHelper.Editor.UI
             return totalHeight;
         }
 
-        private float CalculateMessageHeight(ChatMessage message, float width)
+        private float CalculateMessageHeight(ChatMessageInfo messageInfo, float width)
         {
             float height = 20; // 发送者标签高度
             height += CONTENT_PADDING; // 顶部padding
 
             // 计算消息内容高度
-            if (!string.IsNullOrEmpty(message.content))
+            if (!string.IsNullOrEmpty(messageInfo.message.content))
             {
-                tempContent.text = message.content;
+                tempContent.text = messageInfo.message.content;
                 height += messageStyle.CalcHeight(tempContent, width - 16);
             }
 
             // 如果有工具调用，计算工具调用信息高度
-            if (message.tool_calls != null && message.tool_calls.Length > 0)
+            if (messageInfo.message.tool_calls != null && messageInfo.message.tool_calls.Length > 0)
             {
-                for (int i = 0; i < message.tool_calls.Length; i++)
+                for (int i = 0; i < messageInfo.message.tool_calls.Length; i++)
                 {
                     if (i > 0) height += TOOL_CALL_SPACING;
-                    var result = GetToolCallResult(message.tool_calls[i]);
-                    height += toolCallUI.CalculateContentHeight(message.tool_calls[i], width - 16, result);
+                    var result = GetToolCallResult(messageInfo.message.tool_calls[i]);
+                    height += toolCallUI.CalculateContentHeight(messageInfo.message.tool_calls[i], width - 16, result);
                 }
             }
 
@@ -213,34 +255,39 @@ namespace UnityAIHelper.Editor.UI
             return height;
         }
 
-        private float DrawMessage(ChatMessage message, float y, float width)
+        private float DrawMessage(ChatMessageInfo messageInfo, float y, float width)
         {
             float startY = y;
             float currentY = y + CONTENT_PADDING;
             
             // 绘制发送者
             var style = new GUIStyle(EditorStyles.boldLabel);
-            style.normal.textColor = GetMessageColor(message.role);
-            GUI.Label(new Rect(8, currentY, width - 16, 20), GetMessagePrefix(message.role), style);
+            style.normal.textColor = GetMessageColor(messageInfo.message.role);
+            GUI.Label(new Rect(8, currentY, width - 16, 20), GetMessagePrefix(messageInfo.message.role), style);
+            
+            // 绘制时间
+            DateTimeOffset dateTime = DateTimeOffset.FromUnixTimeSeconds(messageInfo.timestamp);
+            string timeStr = dateTime.LocalDateTime.ToString("HH:mm:ss");
+            GUI.Label(new Rect(8, currentY, width - 16, 20), timeStr, timeStyle);
             currentY += 20;
 
             // 绘制消息内容
-            if (!string.IsNullOrEmpty(message.content))
+            if (!string.IsNullOrEmpty(messageInfo.message.content))
             {
-                tempContent.text = message.content;
+                tempContent.text = messageInfo.message.content;
                 float contentHeight = messageStyle.CalcHeight(tempContent, width - 16);
-                GUI.TextArea(new Rect(8, currentY, width - 16, contentHeight), message.content, messageStyle);
+                GUI.TextArea(new Rect(8, currentY, width - 16, contentHeight), messageInfo.message.content, messageStyle);
                 currentY += contentHeight;
             }
 
             // 如果有工具调用，使用ToolCallUI绘制
-            if (message.tool_calls != null && message.tool_calls.Length > 0)
+            if (messageInfo.message.tool_calls != null && messageInfo.message.tool_calls.Length > 0)
             {
-                for (int i = 0; i < message.tool_calls.Length; i++)
+                for (int i = 0; i < messageInfo.message.tool_calls.Length; i++)
                 {
                     if (i > 0) currentY += TOOL_CALL_SPACING;
-                    var result = GetToolCallResult(message.tool_calls[i]);
-                    float toolCallHeight = toolCallUI.Draw(message.tool_calls[i], currentY, width - 16, result);
+                    var result = GetToolCallResult(messageInfo.message.tool_calls[i]);
+                    float toolCallHeight = toolCallUI.Draw(messageInfo.message.tool_calls[i], currentY, width - 16, result);
                     currentY += toolCallHeight;
                 }
             }

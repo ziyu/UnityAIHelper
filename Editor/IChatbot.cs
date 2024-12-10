@@ -17,8 +17,18 @@ namespace UnityAIHelper.Editor
         Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default);
         Task<ChatMessage> ContinueMessageAsync(CancellationToken cancellationToken = default);
         
-        IReadOnlyList<ChatMessage> GetChatHistory();
+        IReadOnlyList<ChatMessageInfo> GetChatHistory();
         void ClearHistory();
+        
+        /// <summary>
+        /// 更新消息内容
+        /// </summary>
+        void UpdateMessage(ChatMessageInfo messageInfo, string newContent);
+        
+        /// <summary>
+        /// 删除消息
+        /// </summary>
+        void DeleteMessage(ChatMessageInfo messageInfo);
         
         bool HasPendingMessage { get; }
         void ClearPendingState();

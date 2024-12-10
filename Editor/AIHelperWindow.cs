@@ -21,6 +21,8 @@ namespace UnityAIHelper.Editor
         private bool isProcessing = false;
         private bool isCreatingNew = false;
         private bool isShowingSettings = false;
+        private bool isEditing = false;
+        private ChatMessageInfo editingMessage;
         private CancellationTokenSource cancellationTokenSource;
         private const float STATUS_HEIGHT = 30f;
         private GUIStyle statusStyle;
@@ -52,6 +54,10 @@ namespace UnityAIHelper.Editor
             newChatbotUI.OnCancel += () => { isCreatingNew = false; Repaint(); };
             newChatbotUI.OnCreate += CreateNewChatbot;
             settingsUI.OnClose += () => { isShowingSettings = false; Repaint(); };
+
+            // 绑定消息操作事件
+            chatAreaUI.OnEditMessage += HandleEditMessage;
+            chatAreaUI.OnDeleteMessage += HandleDeleteMessage;
 
             // 初始化样式
             if (statusStyle == null)
@@ -128,7 +134,15 @@ namespace UnityAIHelper.Editor
             }
 
             // 输入区域
-            inputAreaUI.Draw(inputAreaTotalHeight, isProcessing);
+            if (isEditing)
+            {
+                inputAreaUI.SetText(editingMessage.message.content);
+                inputAreaUI.Draw(inputAreaTotalHeight, false, "更新", () => UpdateMessage(editingMessage, inputAreaUI.GetText()));
+            }
+            else
+            {
+                inputAreaUI.Draw(inputAreaTotalHeight, isProcessing);
+            }
         }
 
         private void DrawStatusArea()
@@ -161,6 +175,43 @@ namespace UnityAIHelper.Editor
             {
                 CancelCurrentRequest();
             }
+        }
+
+        private void HandleEditMessage(ChatMessageInfo message)
+        {
+            if (message.message.role != "user") return; // 只允许编辑用户消息
+            
+            isEditing = true;
+            editingMessage = message;
+            inputAreaUI.SetText(message.message.content);
+            Repaint();
+        }
+
+        private void HandleDeleteMessage(ChatMessageInfo message)
+        {
+            if (EditorUtility.DisplayDialog("确认删除", "确定要删除这条消息吗？", "确定", "取消"))
+            {
+                var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
+                currentBot.DeleteMessage(message);
+                Repaint();
+            }
+        }
+
+        private void UpdateMessage(ChatMessageInfo message, string newContent)
+        {
+            if (string.IsNullOrEmpty(newContent))
+            {
+                EditorUtility.DisplayDialog("错误", "消息内容不能为空", "确定");
+                return;
+            }
+
+            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
+            currentBot.UpdateMessage(message, newContent);
+            
+            isEditing = false;
+            editingMessage = null;
+            inputAreaUI.SetText("");
+            Repaint();
         }
 
         private void OnStreamingMessageReceived(ChatMessage message)
