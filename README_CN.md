@@ -18,21 +18,28 @@ Unity AI Helper 是一个基于AI的Unity编辑器扩展，通过自然语言交
 3. 选择 "Add package from git URL"
 4. 输入: `https://github.com/ziyu/UnityAIHelper.git`
 
+注意：[UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git)将在Unity Package Manager解析包依赖时自动安装。
+
 ### 手动安装
 
 1. 下载最新版本的Unity AI Helper
 2. 解压到你的Unity项目的Assets目录下
+3. 如果未自动安装，请手动安装[UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git)
 
 ## 使用方法
 
-1. 打开AI Helper窗口
+1. 配置API设置
+   - 打开 Window > AI Helper
+   - 在窗口的设置面板中配置你的API设置
+
+2. 打开AI Helper窗口
    - 在Unity菜单中选择 Window > AI Helper
 
-2. 开始对话
+3. 开始对话
    - 在输入框中输入你的问题或指令
    - 点击发送或按Enter键
 
-3. 支持的命令示例
+4. 支持的命令示例
    ```
    - 创建一个新的游戏对象：create cube
    - 选择对象：select Main Camera
@@ -45,7 +52,7 @@ Unity AI Helper 是一个基于AI的Unity编辑器扩展，通过自然语言交
 ## 系统要求
 
 - Unity 2021.3 或更高版本
-- [UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git) 1.2.0或更高版本
+- [UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git) 1.2.0或更高版本（通过Package Manager自动安装）
 
 ## 许可证
 

@@ -19,21 +19,29 @@ Unity AI Helper is an AI-based Unity editor extension that assists Unity develop
 3. Select "Add package from git URL"
 4. Enter: `https://github.com/ziyu/UnityAIHelper.git`
 
+Note: [UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git) will be automatically installed as a dependency when Unity Package Manager resolves the package dependencies.
+
 ### Manual Installation
 
 1. Download the latest version of Unity AI Helper
 2. Extract to your Unity project's Assets directory
+3. Install [UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git) manually if not automatically installed
 
 ## Usage
 
-1. Open AI Helper Window
+1. Configure API Settings
+   - Open Window > AI Helper in Unity menu
+   - Configure your API settings in the window's settings panel
+
+
+2. Open AI Helper Window
    - Select Window > AI Helper in Unity menu
 
-2. Start Dialogue
+3. Start Dialogue
    - Enter your question or instruction in the input box
    - Click send or press Enter key
 
-3. Example Commands
+4. Example Commands
    ```
    - Create a new game object: create cube
    - Select object: select Main Camera
@@ -46,7 +54,7 @@ Unity AI Helper is an AI-based Unity editor extension that assists Unity develop
 ## System Requirements
 
 - Unity 2021.3 or higher
-- [UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git) 1.2.0 or higher
+- [UnityLLMAPI](https://github.com/ziyu/UnityLLMAPI.git) 1.2.0 or higher (automatically installed via Package Manager)
 
 ## License
 
