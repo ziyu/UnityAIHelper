@@ -59,17 +59,6 @@ namespace UnityAIHelper.Editor
             chatAreaUI.OnEditMessage += HandleEditMessage;
             chatAreaUI.OnDeleteMessage += HandleDeleteMessage;
 
-            // 初始化样式
-            if (statusStyle == null)
-            {
-                statusStyle = new GUIStyle(EditorStyles.helpBox)
-                {
-                    alignment = TextAnchor.MiddleLeft,
-                    padding = new RectOffset(10, 10, 5, 5),
-                    fontSize = 12
-                };
-            }
-
             // 检查是否有未完成的对话
             var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
             if (currentBot.HasPendingMessage)
@@ -147,6 +136,16 @@ namespace UnityAIHelper.Editor
 
         private void DrawStatusArea()
         {
+            if (statusStyle == null)
+            {
+                statusStyle = new GUIStyle(EditorStyles.helpBox)
+                {
+                    alignment = TextAnchor.MiddleLeft,
+                    padding = new RectOffset(10, 10, 5, 5),
+                    fontSize = 12
+                };
+            }
+
             Rect statusRect = GUILayoutUtility.GetRect(position.width, STATUS_HEIGHT);
             GUI.Box(statusRect, "", statusStyle);
 
