@@ -1,0 +1,86 @@
+.root {
+    flex-grow: 1;
+    flex-direction: column;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.toolbar {
+    flex-shrink: 0;
+    min-height: 36px;
+    flex-direction: row;
+    padding: 4px;
+    border-bottom-width: 1px;
+    border-color: var(--unity-colors-toolbar-border);
+    background-color: var(--unity-colors-toolbar-background);
+}
+
+.toolbar-button {
+    margin: 0 4px;
+    padding: 2px 8px;
+    border-radius: 0;
+    background-color: transparent;
+}
+
+.toolbar-button:hover {
+    background-color: var(--unity-colors-button-background-hover);
+}
+
+.chat-area {
+    flex-grow: 1;
+    margin: 8px;
+    background-color: var(--unity-colors-window-background);
+    border-width: 1px;
+    border-color: var(--unity-colors-default-border);
+    border-radius: 3px;
+    padding: 8px;
+    flex-direction: column;
+}
+
+.status-area {
+    flex-shrink: 0;
+    min-height: 32px;
+    margin: 0 8px;
+    background-color: var(--unity-colors-default-background);
+    border-width: 1px;
+    border-color: var(--unity-colors-default-border);
+    border-radius: 3px;
+}
+
+.input-area {
+    flex-shrink: 0;
+    min-height: 60px;
+    margin: 8px;
+    background-color: var(--unity-colors-default-background);
+    border-width: 1px;
+    border-color: var(--unity-colors-default-border);
+    border-radius: 3px;
+    min-height: 100px;
+    border-top-width: 1px;
+    border-color: var(--unity-colors-toolbar-border);
+    padding: 8px;
+}
+
+.modal-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-container {
+    min-width: 300px;
+    min-height: 200px;
+    background-color: var(--unity-colors-window-background);
+    border-width: 1px;
+    border-color: var(--unity-colors-toolbar-border);
+    border-radius: 4px;
+    padding: 16px;
+}

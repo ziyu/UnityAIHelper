@@ -1,0 +1,109 @@
+.json-object {
+    margin: 2px 0;
+}
+
+.json-header {
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+    padding: 2px;
+    flex-wrap: nowrap;
+}
+
+.json-header:hover {
+    background-color: var(--unity-colors-highlight-background);
+}
+
+.json-toggle {
+    margin-right: 4px;
+    -unity-font-style: bold;
+    color: var(--unity-colors-highlight-text);
+    min-width: 16px;
+    flex-shrink: 0;
+}
+
+.json-preview {
+    color: var(--unity-colors-default-text);
+    -unity-text-align: middle-left;
+    flex-grow: 1;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+.json-content {
+    margin-left: 16px;
+}
+
+.json-copy-button {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    background-color: var(--unity-colors-button-background);
+    border-width: 1px;
+    border-color: var(--unity-colors-button-border);
+    color: var(--unity-colors-button-text);
+    margin-left: 4px;
+    flex-shrink: 0;
+    align-self: center;
+    min-width: 40px;
+}
+
+.json-copy-button:hover {
+    background-color: var(--unity-colors-button-background-hover);
+}
+
+.json-copy-button-success {
+    background-color: rgb(35, 134, 54);
+    border-color: rgb(35, 134, 54);
+    color: white;
+}
+
+.json-copy-button-success:hover {
+    background-color: rgb(35, 134, 54);
+}
+
+/* JSON value type styles */
+.json-string {
+    color: rgb(206, 145, 120); /* string value color */
+    white-space: normal;
+    flex-shrink: 1;
+    overflow: hidden;
+}
+
+.json-string-full {
+    white-space: normal;
+    margin: 4px 0;
+    padding: 4px;
+    background-color: var(--unity-colors-alternated_rows-background);
+    border-radius: 3px;
+}
+
+.json-number {
+    color: rgb(181, 206, 168); /* number value color */
+    flex-shrink: 0;
+}
+
+.json-boolean {
+    color: rgb(86, 156, 214); /* boolean value color */
+    flex-shrink: 0;
+}
+
+.json-null {
+    color: rgb(86, 156, 214); /* null value color */
+    font-style: italic;
+    flex-shrink: 0;
+}
+
+.json-property-name {
+    color: rgb(156, 220, 254); /* property name color */
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.json-array-index {
+    color: rgb(181, 206, 168); /* array index color */
+    opacity: 0.7;
+    margin-right: 4px;
+    flex-shrink: 0;
+}

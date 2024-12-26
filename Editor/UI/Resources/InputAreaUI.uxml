@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:custom="UnityAIHelper.Editor.UI">
+    <ui:VisualElement name="input-area-root" class="input-area-root">
+        <ui:VisualElement name="input-area-content" class="input-area-content">
+            <custom:ResizableTextArea name="input-text-field" class="input-text-field" handle-position="top"/>
+            <ui:Button name="send-button" text="发送" class="send-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</UXML>

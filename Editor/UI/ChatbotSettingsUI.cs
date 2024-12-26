@@ -1,127 +1,101 @@
 using UnityEngine;
+using UnityEngine.UIElements;
 using UnityEditor;
 using System;
+using System.Linq;
 
 namespace UnityAIHelper.Editor.UI
 {
-    /// <summary>
-    /// Chatbot设置界面UI组件
-    /// </summary>
     public class ChatbotSettingsUI
     {
         private readonly AIHelperWindow window;
-        private Vector2 scrollPosition;
-        private ResizableTextArea promptArea;
-        
-        // 编辑字段
-        private string name;
-        private string description;
-        private string systemPrompt;
-        private GUIStyle labelStyle;
+        private VisualElement root;
+        private TextField nameField;
+        private ResizableTextArea descriptionField;
+        private ResizableTextArea systemPromptField;
+        private Button saveButton;
+        private Button cancelButton;
 
-        public event Action OnClose;
+        public event Action OnSave;
+        public event Action OnCancel;
+
+        private IChatbot currentBot;
 
         public ChatbotSettingsUI(AIHelperWindow window)
         {
             this.window = window;
-            promptArea = new ResizableTextArea(window, 100f);
-            LoadCurrentSettings();
+            Initialize();
         }
 
-        private void InitStyles()
+        private void Initialize()
         {
-            if (labelStyle == null)
-            {
-                labelStyle = new GUIStyle(EditorStyles.boldLabel)
-                {
-                    margin = new RectOffset(0, 0, 10, 5)
-                };
-            }
+            // 加载UXML和样式
+            var visualTree = PackageAssetLoader.LoadUIAsset<VisualTreeAsset>("ChatbotSettingsUI.uxml");
+            var styleSheet = PackageAssetLoader.LoadUIAsset<StyleSheet>("ChatbotSettingsUI.uss");
+
+            root = new VisualElement();
+            visualTree.CloneTree(root);
+            root.styleSheets.Add(styleSheet);
+
+            // 获取引用
+            nameField = root.Q<TextField>("name-field");
+            descriptionField = root.Q<ResizableTextArea>("description-field");
+            systemPromptField = root.Q<ResizableTextArea>("system-prompt-field");
+            saveButton = root.Q<Button>("save-button");
+            cancelButton = root.Q<Button>("cancel-button");
+
+           // 绑定事件
+           saveButton.clicked += () =>
+           {
+               SaveSettings();
+               OnSave?.Invoke();
+           };
+           cancelButton.clicked += () =>
+           {
+               OnCancel?.Invoke();
+           };
         }
 
-        private void LoadCurrentSettings()
+        public void Show(IChatbot chatbot)
         {
-            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
-            name = currentBot.Name;
-            description = currentBot.Description;
-            systemPrompt = currentBot.SystemPrompt;
+            currentBot = chatbot;
+            LoadSettings();
+            root.style.display = DisplayStyle.Flex;
+            window.Repaint();
         }
 
-        public void Draw()
+        public void Hide()
         {
-            InitStyles();
+            root.style.display = DisplayStyle.None;
+            window.Repaint();
+        }
 
-            EditorGUILayout.BeginVertical();
-            {
-                // 标题
-                EditorGUILayout.Space(10);
-                EditorGUILayout.LabelField("Chatbot 设置", labelStyle);
-                EditorGUILayout.Space(10);
+        private void LoadSettings()
+        {
+            if (currentBot == null) return;
 
-                // 滚动视图
-                scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-                {
-                    // 基本信息
-                    name = EditorGUILayout.TextField("名称", name);
-                    description = EditorGUILayout.TextField("描述", description);
-
-                    EditorGUILayout.Space(10);
-
-                    // 系统提示词
-                    EditorGUILayout.LabelField("系统提示词", labelStyle);
-                    
-                    // 使用EditorGUILayout.GetControlRect获取区域
-                    var promptRect = EditorGUILayout.GetControlRect(
-                        false, 
-                        promptArea.GetHeight(), 
-                        GUILayout.ExpandWidth(true)
-                    );
-
-                    string newPrompt = promptArea.Draw(promptRect, systemPrompt);
-                    if (newPrompt != systemPrompt)
-                    {
-                        systemPrompt = newPrompt;
-                        GUI.changed = true;
-                    }
-                }
-                EditorGUILayout.EndScrollView();
-
-                EditorGUILayout.Space(10);
-
-                // 底部按钮
-                EditorGUILayout.BeginHorizontal();
-                {
-                    if (GUILayout.Button("保存", GUILayout.Height(30)))
-                    {
-                        SaveSettings();
-                        OnClose?.Invoke();
-                    }
-                    if (GUILayout.Button("取消", GUILayout.Height(30)))
-                    {
-                        LoadCurrentSettings();
-                        OnClose?.Invoke();
-                    }
-                }
-                EditorGUILayout.EndHorizontal();
-
-                EditorGUILayout.Space(10);
-            }
-            EditorGUILayout.EndVertical();
-
-            // 如果GUI发生改变，重绘窗口
-            if (GUI.changed)
-            {
-                window.Repaint();
-            }
+            nameField.value = currentBot.Name;
+            descriptionField.text = currentBot.Description;
+            systemPromptField.text = currentBot.SystemPrompt;
         }
 
         private void SaveSettings()
         {
-            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
+            if (currentBot == null) return;
+
             if (currentBot is ChatbotBase chatbot)
             {
-                chatbot.UpdateSettings(name, description, systemPrompt);
+                chatbot.UpdateSettings(
+                    nameField.value,
+                    descriptionField.text,
+                    systemPromptField.text
+                );
             }
+        }
+
+        public VisualElement GetRoot()
+        {
+            return root;
         }
     }
 }

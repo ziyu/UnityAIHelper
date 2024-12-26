@@ -1,0 +1,47 @@
+.toolbar-root {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--unity-colors-toolbar_button-background);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--unity-colors-toolbar-border);
+    min-height: 36px;
+}
+
+.chatbot-dropdown {
+    flex: 1;
+    margin-right: 12px;
+    min-width: 200px;
+}
+
+.chatbot-dropdown .unity-popup-field__input {
+    height: 24px;
+    -unity-text-align: middle-left;
+}
+
+.toolbar-button {
+    margin-left: 6px;
+    padding: 4px 10px;
+    min-height: 24px;
+    border-radius: 3px;
+    background-color: var(--unity-colors-button-background);
+    border-color: var(--unity-colors-button-border);
+    -unity-text-align: middle-center;
+}
+
+.toolbar-button:hover {
+    background-color: var(--unity-colors-button-background-hover);
+}
+
+.toolbar-button:active {
+    background-color: var(--unity-colors-button-background-pressed);
+}
+
+.unity-popup-field {
+    margin: 0;
+}
+
+.unity-popup-field__label {
+    display: none;
+}

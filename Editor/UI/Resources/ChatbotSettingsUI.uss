@@ -1,0 +1,57 @@
+.settings-root {
+    padding: 16px;
+    min-width: 300px;
+    background-color: var(--unity-colors-default-background);
+}
+
+.settings-title {
+    -unity-font-style: bold;
+    font-size: 16px;
+    margin-bottom: 16px;
+}
+
+.settings-content {
+    margin-bottom: 16px;
+}
+
+.settings-field {
+    margin: 4px 0;
+}
+
+.settings-label {
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.system-prompt {
+    min-height: 100px;
+    white-space: normal;
+    -unity-text-align: upper-left;
+}
+
+.system-prompt > .unity-text-field__input {
+    min-height: 100px;
+    white-space: normal;
+    -unity-text-align: upper-left;
+}
+
+.settings-buttons {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.settings-button {
+    min-width: 80px;
+    margin-left: 8px;
+    padding: 4px 12px;
+}
+
+.save-button {
+    background-color: var(--unity-colors-button-background-pressed);
+    color: white;
+}
+
+.cancel-button {
+    background-color: var(--unity-colors-button-background);
+}

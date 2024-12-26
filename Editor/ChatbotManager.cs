@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEditor;
@@ -13,23 +14,26 @@ namespace UnityAIHelper.Editor
     public class ChatbotManager
     {
         private static ChatbotManager instance;
-        public static ChatbotManager Instance
-        {
-            get
-            {
-                instance ??= new ChatbotManager();
-                return instance;
-            }
-        }
+        public static ChatbotManager Instance => instance ??= new ChatbotManager();
 
-        private readonly Dictionary<string, IChatbot> chatbots = new();
+        private Dictionary<string, IChatbot> chatbots = new Dictionary<string, IChatbot>();
         private string currentChatbotId;
 
+        public event Action OnChatbotChanged;
+        public event Action OnChatbotListChanged;
+        
         public string CurrentChatbotId => currentChatbotId;
         public IReadOnlyDictionary<string, IChatbot> Chatbots => chatbots;
 
         private ChatbotManager()
         {
+            Initialize();
+        }
+
+        public void Initialize()
+        {
+            if (chatbots.Count > 0) return;
+
             // 创建默认的Unity助手chatbot，启用streaming
             var unityHelper = new UnityHelperChatbot(useStreaming: true);
             chatbots.Add(unityHelper.Id, unityHelper);
@@ -46,6 +50,7 @@ namespace UnityAIHelper.Editor
 
             var chatbot = new CustomChatbot(id, name, description, systemPrompt, useStreaming: true);
             chatbots.Add(id, chatbot);
+            OnChatbotListChanged?.Invoke();
             return chatbot;
         }
 
@@ -66,10 +71,11 @@ namespace UnityAIHelper.Editor
 
         public void SwitchChatbot(string id)
         {
-            if (!chatbots.ContainsKey(id))
-                throw new ArgumentException($"Chatbot with ID '{id}' does not exist");
+            if (!chatbots.ContainsKey(id)) return;
+            if (currentChatbotId == id) return;
 
             currentChatbotId = id;
+            OnChatbotChanged?.Invoke();
         }
 
         public void RemoveChatbot(string id)
@@ -83,13 +89,25 @@ namespace UnityAIHelper.Editor
             chatbots.Remove(id);
             if (currentChatbotId == id)
             {
-                currentChatbotId = "unity_helper";
+                currentChatbotId = chatbots.Keys.First();
+                OnChatbotChanged?.Invoke();
             }
+            OnChatbotListChanged?.Invoke();
         }
 
         public IChatbot GetCurrentChatbot()
         {
             return chatbots[currentChatbotId];
+        }
+
+        public string GetCurrentChatbotId()
+        {
+            return currentChatbotId;
+        }
+
+        public Dictionary<string, IChatbot> GetAllChatbots()
+        {
+            return chatbots;
         }
     }
 

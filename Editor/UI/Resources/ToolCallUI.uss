@@ -1,0 +1,42 @@
+.tool-call-container {
+    background-color: var(--unity-colors-box-background);
+    border-radius: 3px;
+    padding: 8px;
+    margin: 4px 0;
+}
+
+.tool-call-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    cursor: pointer;
+}
+
+.tool-call-header:hover {
+    opacity: 0.8;
+}
+
+.tool-name {
+    -unity-font-style: bold;
+    color: var(--unity-colors-highlight-text);
+}
+
+.tool-args {
+    background-color: var(--unity-colors-alternated_rows-background);
+    border-radius: 3px;
+    padding: 4px;
+    margin: 4px 0;
+    white-space: normal;
+    -unity-text-align: middle-left;
+}
+
+.tool-result {
+    background-color: var(--unity-colors-alternated_rows-background);
+    border-radius: 3px;
+    padding: 4px;
+    margin: 4px 0;
+    white-space: normal;
+    -unity-text-align: middle-left;
+    color: var(--unity-colors-highlight-text);
+}
