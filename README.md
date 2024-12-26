@@ -16,7 +16,7 @@ Unity AI Helper 是一个基于AI的Unity编辑器扩展，通过自然语言交
 1. 打开 Window > Package Manager
 2. 点击左上角的 "+" 按钮
 3. 选择 "Add package from git URL"
-4. 输入: `https://github.com/your-repo.git`
+4. 输入: `https://github.com/ziyu/UnityAIHelper.git`
 
 ### 手动安装
 

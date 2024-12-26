@@ -5,7 +5,7 @@
     "description": "An AI-powered Unity editor extension that helps with development tasks through natural language interaction.",
     "unity": "2021.3",
     "dependencies": {
-        "com.unity.llmapi": "1.0.0"
+        "com.ziyu.unity_llm_api": "1.2.0"
     },
     "keywords": [
         "ai",
@@ -17,7 +17,7 @@
     "author": {
         "name": "ziyu",
         "email": "liziyu1209@gmail.com",
-        "url": "https://github.com/your-repo"
+        "url": "https://github.com/ziyu"
     },
     "samples": [
         {
