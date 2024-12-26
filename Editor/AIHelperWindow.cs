@@ -39,6 +39,27 @@ namespace UnityAIHelper.Editor
 
         private void OnEnable()
         {
+            // 检查UnityLLMAPI配置
+            var config = UnityLLMAPI.Config.OpenAIConfig.Instance;
+            if (config == null)
+            {
+                // 创建默认配置
+                config = ScriptableObject.CreateInstance<UnityLLMAPI.Config.OpenAIConfig>();
+                
+                // 确保Resources目录存在
+                if (!AssetDatabase.IsValidFolder("Assets/Resources"))
+                {
+                    AssetDatabase.CreateFolder("Assets", "Resources");
+                }
+                
+                // 保存配置文件
+                AssetDatabase.CreateAsset(config, "Assets/Resources/OpenAIConfig.asset");
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                
+                Debug.Log("已创建默认OpenAI配置文件，请在Project窗口中设置相关参数");
+            }
+
             // 初始化UI组件
             chatAreaUI = new ChatAreaUI(this);
             inputAreaUI = new InputAreaUI(this);
