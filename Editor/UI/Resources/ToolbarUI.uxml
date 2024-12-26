@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="toolbar" picking-mode="position" class="toolbar-root" style="align-items: stretch; justify-content: flex-start; flex-direction: row;">
+        <ui:DropdownField name="chatbot-dropdown" picking-mode="position" class="chatbot-dropdown" />
+        <ui:Button name="clear-history-button" text="清空对话" picking-mode="position" class="toolbar-button" />
+        <ui:Button name="settings-button" text="设置" picking-mode="position" class="toolbar-button" />
+    </ui:VisualElement>
+</ui:UXML>

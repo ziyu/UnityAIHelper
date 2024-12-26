@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement class="tool-call-container">
+        <ui:VisualElement class="tool-call-header">
+            <ui:Label name="tool-name" class="tool-name"/>
+            <ui:Label name="tool-time" class="tool-time"/>
+        </ui:VisualElement>
+        <ui:Label name="tool-args" class="tool-args"/>
+        <ui:Label name="tool-result" class="tool-result"/>
+    </ui:VisualElement>
+</UXML>

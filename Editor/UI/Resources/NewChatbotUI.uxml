@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:custom="UnityAIHelper.Editor.UI">
+    <ui:VisualElement name="new-chatbot-root" class="new-chatbot-root">
+        <ui:Label text="新建助手" class="new-chatbot-title" />
+        
+        <ui:VisualElement class="new-chatbot-content">
+            <!-- Name Field -->
+            <ui:TextField name="name-field" label="名称" class="new-chatbot-field" />
+            
+            <!-- Description Field -->
+            <ui:Label text="描述" class="new-chatbot-label" />
+            <custom:ResizableTextArea name="description-field" class="new-chatbot-field description-field" />
+            
+            <!-- System Prompt Field -->
+            <ui:Label text="系统提示词" class="new-chatbot-label" />
+            <custom:ResizableTextArea name="system-prompt-field" class="new-chatbot-field system-prompt" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement class="new-chatbot-buttons">
+            <ui:Button name="create-button" text="创建" class="new-chatbot-button create-button" />
+            <ui:Button name="cancel-button" text="取消" class="new-chatbot-button cancel-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</UXML>

@@ -1,210 +1,216 @@
+using System;
 using UnityEngine;
+using UnityEngine.UIElements;
 using UnityEditor;
 
 namespace UnityAIHelper.Editor.UI
 {
-    /// <summary>
-    /// 可伸缩的文本框控件
-    /// </summary>
-    public class ResizableTextArea
+    public class ResizableTextArea : VisualElement
     {
-        private readonly EditorWindow window;
-        private bool isDragging;
-        private GUIStyle textStyle;
-        private const float MIN_HEIGHT = 60f;
-        private Vector2 dragStartPos;
-        private float heightAtDragStart;
-        private float currentHeight;
-        private int controlID;
-        private bool isHovering;
-        private Vector2 scrollPosition;
-        private float cachedContentHeight;
-        private bool useScroller;
-
-        public enum DragPosition
+        public enum HandlePosition
         {
             Top,
             Bottom
         }
 
-        private readonly DragPosition dragPosition;
+        private TextField textField;
+        private VisualElement resizeHandle;
+        private bool isDragging;
+        private Vector2 dragStartPos;
+        private float heightAtDragStart;
+        private const float MIN_HEIGHT = 60f;
+        private float currentHeight = MIN_HEIGHT;
+        private HandlePosition handlePosition = HandlePosition.Bottom;
 
-        public ResizableTextArea(EditorWindow window, float initialHeight = 100f, DragPosition dragPosition = DragPosition.Bottom,bool useScroller=true)
+        public HandlePosition ResizeHandlePosition
         {
-            this.window = window;
-            this.currentHeight = initialHeight;
-            this.dragPosition = dragPosition;
-            this.useScroller = useScroller;
+            get => handlePosition;
+            set
+            {
+                if (handlePosition != value)
+                {
+                    handlePosition = value;
+                    UpdateHandlePosition();
+                }
+            }
         }
 
-        private void InitStyles()
+        public event EventCallback<ChangeEvent<string>> valueChanged;
+
+        public string text
         {
-            if (textStyle != null) return;
-            textStyle = new GUIStyle(EditorStyles.textArea)
+            get => textField.value;
+            set
             {
-                wordWrap = true,
-                richText = true,
-                padding = new RectOffset(4, 4, 4, 4),
-                stretchHeight = true,
-                fixedHeight = 0,
-                clipping = TextClipping.Clip
+                if (textField.value != value)
+                {
+                    textField.value = value;
+                    valueChanged?.Invoke(ChangeEvent<string>.GetPooled(textField.value, value));
+                }
+            }
+        }
+
+        public new class UxmlFactory : UxmlFactory<ResizableTextArea, UxmlTraits> { }
+
+        public new class UxmlTraits : VisualElement.UxmlTraits
+        {
+            UxmlStringAttributeDescription m_Label = new UxmlStringAttributeDescription { name = "label", defaultValue = "" };
+            UxmlStringAttributeDescription m_Value = new UxmlStringAttributeDescription { name = "value", defaultValue = "" };
+            UxmlEnumAttributeDescription<HandlePosition> m_HandlePosition = new UxmlEnumAttributeDescription<HandlePosition> 
+            { 
+                name = "handle-position", 
+                defaultValue = HandlePosition.Bottom
             };
+
+            public override void Init(VisualElement ve, IUxmlAttributes bag, CreationContext cc)
+            {
+                base.Init(ve, bag, cc);
+                var area = ve as ResizableTextArea;
+
+                // 确保属性按正确的顺序初始化
+                area.Label = m_Label.GetValueFromBag(bag, cc);
+                area.text = m_Value.GetValueFromBag(bag, cc);
+
+                // 显式检查handle-position属性是否存在
+                if (bag.TryGetAttributeValue("handle-position", out string positionStr)
+                    &&Enum.TryParse<HandlePosition>( positionStr, true,out HandlePosition handlePosition))
+                {
+                    area.ResizeHandlePosition = handlePosition;
+                }
+                else
+                {
+                    area.ResizeHandlePosition = m_HandlePosition.defaultValue;
+                }
+            }
         }
 
-        public string Draw(Rect rect, string text)
+        public string Label
         {
-            InitStyles();
+            get => textField.label;
+            set => textField.label = value;
+        }
 
-            var e = Event.current;
-            controlID = GUIUtility.GetControlID(FocusType.Passive);
+        public ResizableTextArea()
+        {
+            // 加载样式
+            styleSheets.Add(PackageAssetLoader.LoadUIAsset<StyleSheet>("ResizableTextArea.uss"));
+            AddToClassList("resizable-text-area");
 
-            float scrollbarWidth = 20f;
+            // 创建文本输入框
+            textField = new TextField();
+            textField.multiline = true;
+            textField.name = "text-field";
+            textField.AddToClassList("text-field");
+            Add(textField);
 
-            // 拖拽区域
-            var dragRect = dragPosition == DragPosition.Top ?
-                new Rect(rect.x, rect.y, rect.width, 5) :
-                new Rect(rect.x, rect.y + currentHeight - 5, rect.width, 5);
-            
-            // 文本区域
-            var textAreaRect = dragPosition == DragPosition.Top ?
-                new Rect(rect.x, rect.y + 5, rect.width, currentHeight - 5) :
-                new Rect(rect.x, rect.y, rect.width, currentHeight - 5);
+            // 创建调整大小的handle
+            resizeHandle = new VisualElement();
+            resizeHandle.name = "resize-handle";
+            resizeHandle.AddToClassList("resize-handle");
+            Add(resizeHandle);
 
-            // 处理拖拽事件
-            EditorGUIUtility.AddCursorRect(dragRect, MouseCursor.ResizeVertical);
+            // 设置初始高度和handle位置
+            style.height = currentHeight;
+            handlePosition = HandlePosition.Bottom; // 设置默认值
+            UpdateHandlePosition();
 
-            // 获取相对于控件的鼠标位置
-            Vector2 mousePos = e.mousePosition;
-            
-            // 处理事件
-            switch (e.type)
+            // 设置大小调整功能
+            SetupResizeHandle();
+
+            // 设置文本变化事件
+            textField.RegisterValueChangedCallback(evt =>
             {
-                case EventType.MouseDown:
-                    if (dragRect.Contains(mousePos))
-                    {
-                        isDragging = true;
-                        dragStartPos = mousePos;
-                        heightAtDragStart = currentHeight;
-                        GUIUtility.hotControl = controlID;
-                        e.Use();
-                    }
-                    break;
-                    
-                case EventType.MouseDrag:
-                    if (isDragging && GUIUtility.hotControl == controlID)
-                    {
-                        float delta = mousePos.y - dragStartPos.y;
-                        if (dragPosition == DragPosition.Top)
-                        {
-                            currentHeight = Mathf.Max(MIN_HEIGHT, heightAtDragStart - delta);
-                        }
-                        else
-                        {
-                            currentHeight = Mathf.Max(MIN_HEIGHT, heightAtDragStart + delta);
-                        }
-                        window.Repaint();
-                        e.Use();
-                    }
-                    break;
-                    
-                case EventType.MouseUp:
-                    if (isDragging && GUIUtility.hotControl == controlID)
-                    {
-                        isDragging = false;
-                        GUIUtility.hotControl = 0;
-                        e.Use();
-                    }
-                    break;
+                valueChanged?.Invoke(evt);
+            });
 
-                case EventType.MouseMove:
-                    isHovering = dragRect.Contains(mousePos);
-                    if (isHovering)
-                    {
-                        window.Repaint();
-                    }
-                    break;
+            // 注册布局完成事件，确保handle位置正确
+            RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                UpdateHandlePosition();
+            });
+        }
 
-                case EventType.MouseLeaveWindow:
-                    if (isDragging && GUIUtility.hotControl == controlID)
-                    {
-                        // 继续处理拖拽，但确保鼠标位置在合理范围内
-                        Vector2 clampedMousePos = e.mousePosition;
-                        clampedMousePos.y = Mathf.Clamp(clampedMousePos.y, rect.y, rect.y + rect.height);
-                        float delta = clampedMousePos.y - dragStartPos.y;
-                        
-                        if (dragPosition == DragPosition.Top)
-                        {
-                            currentHeight = Mathf.Max(MIN_HEIGHT, heightAtDragStart - delta);
-                        }
-                        else
-                        {
-                            currentHeight = Mathf.Max(MIN_HEIGHT, heightAtDragStart + delta);
-                        }
-                        window.Repaint();
-                    }
-                    break;
+        private void OnMouseMove(MouseMoveEvent evt)
+        {
+            if (!isDragging) return;
 
-                case EventType.KeyDown:
-                    if (isDragging && e.keyCode == KeyCode.Escape)
-                    {
-                        // 取消拖拽，恢复原始高度
-                        isDragging = false;
-                        currentHeight = heightAtDragStart;
-                        GUIUtility.hotControl = 0;
-                        window.Repaint();
-                        e.Use();
-                    }
-                    break;
+            float delta = handlePosition == HandlePosition.Bottom ? 
+                         (evt.mousePosition.y - dragStartPos.y) : 
+                         (dragStartPos.y - evt.mousePosition.y);
+            
+            float newHeight = Mathf.Max(MIN_HEIGHT, heightAtDragStart + delta);
+            if (style.height != newHeight)
+            {
+                style.height = newHeight;
+                currentHeight = newHeight;
             }
 
-            
-            string newText;
-            if (useScroller)
-            {
-                // 计算内容高度
-                var contentSize = textStyle.CalcSize(new GUIContent(text ?? ""));
-                var wrappedHeight = textStyle.CalcHeight(new GUIContent(text ?? ""), textAreaRect.width - scrollbarWidth);
-                cachedContentHeight = Mathf.Max(wrappedHeight, contentSize.y);
+            evt.StopPropagation();
+        }
 
-                // 绘制文本区域
-                var viewportRect = new Rect(textAreaRect.x, textAreaRect.y, textAreaRect.width, textAreaRect.height);
-                var contentRect = new Rect(0, 0, textAreaRect.width - scrollbarWidth, cachedContentHeight);
-                scrollPosition = GUI.BeginScrollView(viewportRect, scrollPosition, contentRect, false, true);
+        private void OnMouseUp(MouseUpEvent evt)
+        {
+            if (!isDragging) return;
+            isDragging = false;
+            resizeHandle.ReleaseMouse();
+            evt.StopPropagation();
+        }
+
+        private void SetupResizeHandle()
+        {
+            resizeHandle.RegisterCallback<MouseDownEvent>(evt =>
+            {
+                if (evt.button != 0) return; // 只处理左键点击
+                isDragging = true;
+                dragStartPos = evt.mousePosition;
+                heightAtDragStart = resolvedStyle.height;
+                resizeHandle.CaptureMouse();
+                evt.StopPropagation();
+            });
             
-                newText = EditorGUI.TextArea(contentRect, text ?? "", textStyle);
-            
-                GUI.EndScrollView();
+            resizeHandle.RegisterCallback<MouseMoveEvent>(OnMouseMove);
+            resizeHandle.RegisterCallback<MouseUpEvent>(OnMouseUp);
+        }
+
+        private void UpdateHandlePosition()
+        {
+            if (handlePosition == HandlePosition.Top)
+            {
+                resizeHandle.style.top = 0;
+                resizeHandle.style.bottom = StyleKeyword.Null;
+                textField.style.paddingTop = 12;
+                textField.style.paddingBottom = 4;
             }
             else
             {
-                newText = EditorGUI.TextArea(textAreaRect, text ?? "", textStyle);
+                resizeHandle.style.bottom = 0;
+                resizeHandle.style.top = StyleKeyword.Null;
+                textField.style.paddingTop = 4;
+                textField.style.paddingBottom = 12;
             }
 
-  
-                
-            if (newText != text)
-            {
-                text = newText;
-                GUI.changed = true;
-            }
-
-            // 绘制拖拽手柄的视觉提示
-            if (isHovering || isDragging)
-            {
-                EditorGUI.DrawRect(dragRect, new Color(0.5f, 0.5f, 0.5f, 0.5f));
-            }
-            
-            return text;
+            // 强制刷新布局
+            style.display = DisplayStyle.Flex;
         }
 
-        public float GetHeight()
+        public void RegisterValueChangedCallback(EventCallback<ChangeEvent<string>> evtCallback)
         {
-            return currentHeight;
+            valueChanged += evtCallback;
         }
 
-        public void SetHeight(float newHeight)
+        public void UnregisterValueChangedCallback(EventCallback<ChangeEvent<string>> evtCallback)
         {
-            currentHeight = Mathf.Max(MIN_HEIGHT, newHeight);
+            valueChanged -= evtCallback;
+        }
+
+        public void Clear()
+        {
+            text = "";
+        }
+
+        public void Focus()
+        {
+            textField.Focus();
         }
     }
 }

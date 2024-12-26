@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:ScrollView name="chat-scroll" class="chat-scroll">
+        <ui:VisualElement name="chat-content" class="chat-content">
+            <!-- Messages will be added here dynamically -->
+        </ui:VisualElement>
+    </ui:ScrollView>
+</UXML>

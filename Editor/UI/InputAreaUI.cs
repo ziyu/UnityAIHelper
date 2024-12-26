@@ -1,110 +1,69 @@
 using UnityEngine;
+using UnityEngine.UIElements;
 using UnityEditor;
 using System;
 
 namespace UnityAIHelper.Editor.UI
 {
-    public class InputAreaUI
+    public class InputAreaUI:UIComponentBase
     {
         private readonly AIHelperWindow window;
+        private VisualElement root;
+        private ResizableTextArea inputTextField;
+        private Button sendButton;
         private string userInput = "";
-        private GUIStyle buttonStyle;
-        private ResizableTextArea textArea;
+
+        private bool _lastIsProcessing = false;
 
         public event Action<string> OnSendMessage;
 
-        public InputAreaUI(AIHelperWindow window)
+        public InputAreaUI(AIHelperWindow window, VisualElement root)
         {
             this.window = window;
-            textArea = new ResizableTextArea(window, 60f, ResizableTextArea.DragPosition.Top, false);
+            this.root = root;
+            Initialize();
         }
 
-        private void InitStyles()
+        void Initialize()
         {
-            if (buttonStyle == null)
-            {
-                buttonStyle = new GUIStyle(EditorStyles.miniButton)
-                {
-                    fixedWidth = 60,
-                    fixedHeight = 25
-                };
-            }
+            var styleSheet = PackageAssetLoader.LoadUIAsset<StyleSheet>("InputAreaUI.uss");
+            root.styleSheets.Add(styleSheet);
+
+            // Get references
+            inputTextField = root.Q<ResizableTextArea>("input-text-field");
+            sendButton = root.Q<Button>("send-button");
+
+            // Setup input handling
+            SetupInputHandling();
+
+            SetProcessing(window.isProcessing);
+            _lastIsProcessing = window.isProcessing;
         }
 
-        public void Draw(float height, bool isProcessing, string buttonText = "发送", Action customCallback = null)
+        private void SetupInputHandling()
         {
-            InitStyles();
-
-            // 主容器
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.Height(height));
+            // 文本变化事件
+            inputTextField.RegisterValueChangedCallback(evt =>
             {
-                // 水平布局包含输入区域和按钮
-                EditorGUILayout.BeginHorizontal();
-                {
-                    // 输入区域容器
-                    EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-                    {
-                        // 获取文本区域的矩形
-                        Rect textAreaRect = EditorGUILayout.GetControlRect(false, textArea.GetHeight());
-                        
-                        // 使用ResizableTextArea
-                        GUI.enabled = !isProcessing;
-                        string newInput = textArea.Draw(textAreaRect, userInput);
-                        if (newInput != userInput)
-                        {
-                            userInput = newInput;
-                            GUI.changed = true;
-                        }
-                        GUI.enabled = true;
-                    }
-                    EditorGUILayout.EndVertical();
-
-                    // 发送按钮
-                    EditorGUILayout.BeginVertical(GUILayout.Width(70));
-                    {
-                        if (GUILayout.Button(buttonText, buttonStyle))
-                        {
-                            if (customCallback != null)
-                            {
-                                customCallback();
-                            }
-                            else
-                            {
-                                SendMessage();
-                            }
-                        }
-
-                        // 处理快捷键
-                        var e = Event.current;
-                        if (e.type == EventType.KeyDown && 
-                            e.keyCode == KeyCode.Return && 
-                            !e.shift && 
-                            !isProcessing && 
-                            !string.IsNullOrEmpty(userInput.Trim()) &&
-                            EditorWindow.focusedWindow == window)
-                        {
-                            if (customCallback != null)
-                            {
-                                customCallback();
-                            }
-                            else
-                            {
-                                SendMessage();
-                            }
-                            e.Use();
-                        }
-                    }
-                    EditorGUILayout.EndVertical();
-                }
-                EditorGUILayout.EndHorizontal();
-            }
-            EditorGUILayout.EndVertical();
-
-            // 如果GUI发生改变，重绘窗口
-            if (GUI.changed)
-            {
+                userInput = evt.newValue;
                 window.Repaint();
-            }
+            });
+
+            // Send button click
+            sendButton.clicked += SendMessage;
+
+            // Enter key handling
+            inputTextField.RegisterCallback<KeyDownEvent>(evt => 
+            {
+                if (evt.keyCode == KeyCode.Return && !evt.shiftKey && 
+                    !string.IsNullOrEmpty(GetText().Trim()) &&
+                    EditorWindow.focusedWindow == window)
+                {
+                    SendMessage();
+                    evt.StopPropagation();
+                    evt.PreventDefault();
+                }
+            });
         }
 
         private void SendMessage()
@@ -114,44 +73,49 @@ namespace UnityAIHelper.Editor.UI
             {
                 string message = trimmedInput;
                 userInput = "";
+                inputTextField.text = "";
                 OnSendMessage?.Invoke(message);
-                GUI.FocusControl(null);
-                window.Repaint();
             }
         }
 
-        public float GetHeight()
+        void SetProcessing(bool isProcessing)
         {
-            return textArea.GetHeight() + 5; // 添加边距
+            if (inputTextField != null)
+            {
+                inputTextField.SetEnabled(!isProcessing);
+            }
+            if (sendButton != null)
+            {
+                sendButton.SetEnabled(!isProcessing);
+            }
+        }
+
+        public string GetText()
+        {
+            return userInput;
+        }
+
+        public void SetText(string text)
+        {
+            userInput = text ?? "";
+            if (inputTextField != null)
+            {
+                inputTextField.text = userInput;
+            }
+            window.Repaint();
         }
 
         public void Clear()
         {
-            userInput = "";
-            GUI.FocusControl(null);
-            window.Repaint();
+            SetText("");
         }
+        
 
-        public void Focus()
+        public override void OnUpdateUI()
         {
-            window.Repaint();
-        }
-
-        /// <summary>
-        /// 设置输入文本
-        /// </summary>
-        public void SetText(string text)
-        {
-            userInput = text ?? "";
-            window.Repaint();
-        }
-
-        /// <summary>
-        /// 获取当前输入文本
-        /// </summary>
-        public string GetText()
-        {
-            return userInput;
+            if(_lastIsProcessing==window.isProcessing)return;
+            SetProcessing(window.isProcessing);
+            _lastIsProcessing = window.isProcessing;
         }
     }
 }
