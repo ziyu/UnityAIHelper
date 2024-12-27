@@ -1,133 +1,111 @@
 using UnityEngine;
 using UnityEditor;
+using UnityEngine.UIElements;
+using UnityEditor.UIElements;
 
 namespace UnityAIHelper.Editor.UI
 {
     public static class EditorInputDialog
     {
-        public static string Show(string title, string message, string defaultText = "")
+        public static void Show(string title, string message, string defaultText, System.Action<string> callback)
         {
-            // 创建一个临时的ScriptableObject来存储用户输入
-            var inputContainer = ScriptableObject.CreateInstance<InputContainer>();
-            inputContainer.userInput = defaultText;
-            
-            // 显示输入对话框
-            bool confirmed = false;
-            EditorGUIUtility.ShowObjectPicker<InputContainer>(inputContainer, false, "", 0);
-            
-            var position = EditorGUIUtility.GetObjectPickerControlID();
-            var window = EditorWindow.GetWindow<InputDialog>(true, title);
-            window.Initialize(message, defaultText, result =>
-            {
-                confirmed = result.confirmed;
-                if (confirmed)
-                {
-                    inputContainer.userInput = result.input;
-                }
-                EditorGUIUtility.ExitGUI();
-            });
-
-            // 等待用户操作完成
-            while (window != null && !window.IsClosed)
-            {
-                EditorGUIUtility.GetObjectPickerObject();
-            }
-            
-            var result = confirmed ? inputContainer.userInput : null;
-            Object.DestroyImmediate(inputContainer);
-            return result;
-        }
-
-        private class InputContainer : ScriptableObject
-        {
-            public string userInput;
+            var window = EditorWindow.CreateInstance<InputDialog>();
+            window.titleContent = new GUIContent(title);
+            window.Initialize(message, defaultText, callback);
+            window.ShowModal();
         }
 
         private class InputDialog : EditorWindow
         {
-            private string message;
-            private string input;
-            private System.Action<(bool confirmed, string input)> callback;
-            public bool IsClosed { get; private set; }
+            private System.Action<string> callback;
 
-            public void Initialize(string message, string defaultInput, System.Action<(bool confirmed, string input)> callback)
+            public void Initialize(string message, string defaultText, System.Action<string> callback)
             {
-                this.message = message;
-                this.input = defaultInput;
                 this.callback = callback;
-                IsClosed = false;
-                
-                // 设置窗口大小
-                minSize = maxSize = new Vector2(300, 100);
+
+                // Load UXML
+                var visualTree = PackageAssetLoader.LoadUIAsset<VisualTreeAsset>("EditorInputDialog.uxml");
+                if (visualTree == null)
+                {
+                    Debug.LogError("Failed to load EditorInputDialog.uxml");
+                    return;
+                }
+
+                var root = visualTree.CloneTree();
+                rootVisualElement.Add(root);
+
+                // Load USS
+                var styleSheet = PackageAssetLoader.LoadUIAsset<StyleSheet>("EditorInputDialog.uss");
+                if (styleSheet != null)
+                {
+                    rootVisualElement.styleSheets.Add(styleSheet);
+                }
+                else
+                {
+                    Debug.LogWarning("Failed to load EditorInputDialog.uss");
+                }
+
+                // Set UI elements
+                var titleLabel = root.Q<Label>(className: "dialog-title");
+                var messageLabel = root.Q<Label>(className: "dialog-message");
+                var inputField = root.Q<TextField>(className: "dialog-input");
+
+                if (titleLabel == null || messageLabel == null || inputField == null)
+                {
+                    Debug.LogError("Failed to find required UI elements in EditorInputDialog.uxml");
+                    return;
+                }
+
+                titleLabel.text = titleContent.text;
+                messageLabel.text = message;
+                inputField.value = defaultText;
+
+                // Focus input field
+                inputField.Focus();
+
+                // Handle confirm button
+                root.Q<Button>("confirm-button").clicked += () =>
+                {
+                    callback?.Invoke(inputField.value);
+                    Close();
+                };
+
+                // Handle cancel button
+                root.Q<Button>("cancel-button").clicked += () =>
+                {
+                    callback?.Invoke(null);
+                    Close();
+                };
+
+                // Handle Enter key
+                inputField.RegisterCallback<KeyDownEvent>(evt =>
+                {
+                    if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
+                    {
+                        callback?.Invoke(inputField.value);
+                        Close();
+                    }
+                });
+
+                // Handle Escape key
+                rootVisualElement.RegisterCallback<KeyDownEvent>(evt =>
+                {
+                    if (evt.keyCode == KeyCode.Escape)
+                    {
+                        callback?.Invoke(null);
+                        Close();
+                    }
+                });
+
+                // Set window size
+                minSize = new Vector2(300, 150);
+                maxSize = new Vector2(400, 200);
                 position = new Rect(
                     (Screen.currentResolution.width - minSize.x) / 2,
                     (Screen.currentResolution.height - minSize.y) / 2,
                     minSize.x,
                     minSize.y
                 );
-                
-                ShowUtility();
-            }
-
-            private void OnGUI()
-            {
-                EditorGUILayout.LabelField(message);
-                GUI.SetNextControlName("InputField");
-                input = EditorGUILayout.TextField(input);
-                
-                // 自动聚焦到输入框
-                if (Event.current.type == EventType.Repaint)
-                {
-                    GUI.FocusControl("InputField");
-                }
-
-                // 处理回车键
-                if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return)
-                {
-                    Submit(true);
-                    return;
-                }
-                
-                // 处理ESC键
-                if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
-                {
-                    Submit(false);
-                    return;
-                }
-
-                EditorGUILayout.Space();
-                
-                // 按钮区域
-                EditorGUILayout.BeginHorizontal();
-                {
-                    GUILayout.FlexibleSpace();
-                    
-                    if (GUILayout.Button("确定", GUILayout.Width(60)))
-                    {
-                        Submit(true);
-                    }
-                    
-                    if (GUILayout.Button("取消", GUILayout.Width(60)))
-                    {
-                        Submit(false);
-                    }
-                }
-                EditorGUILayout.EndHorizontal();
-            }
-
-            private void Submit(bool confirmed)
-            {
-                IsClosed = true;
-                callback?.Invoke((confirmed, input));
-                Close();
-            }
-
-            private void OnDestroy()
-            {
-                if (!IsClosed)
-                {
-                    Submit(false);
-                }
             }
         }
     }

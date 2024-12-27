@@ -80,7 +80,6 @@ namespace UnityAIHelper.Editor
             // 绑定事件
             inputAreaUI.OnSendMessage += SendMessage;
             toolbarUI.OnCreateNewChatbot += ShowNewChat;
-            toolbarUI.OnClearHistory += OnClearHistory;
             toolbarUI.OnOpenSettings += ShowSettings;
             newChatbotUI.OnCancel += HideModal;
             newChatbotUI.OnCreate += CreateNewChatbot;

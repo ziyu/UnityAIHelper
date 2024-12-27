@@ -49,14 +49,14 @@ namespace UnityAIHelper.Editor
         (string sessionId, string title) CreateSession(string sessionName = null);
         
         /// <summary>
-        /// 删除当前会话
+        /// 删除会话
         /// </summary>
-        void DeleteCurrentSession();
+        void DeleteSession(string sessionId);
         
         /// <summary>
-        /// 重命名当前会话
+        /// 重命名会话
         /// </summary>
-        string RenameCurrentSession(string newName);
+        string RenameSession(string sessionId,string newName);
         
         /// <summary>
         /// 重新加载当前会话

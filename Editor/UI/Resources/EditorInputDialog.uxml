@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:VisualElement class="dialog-root">
+        <ui:Label text="Dialog Title" class="dialog-title" />
+        <ui:Label text="Message" class="dialog-message" />
+        <ui:TextField name="input-field" class="dialog-input" />
+        <ui:VisualElement class="dialog-buttons">
+            <ui:Button name="confirm-button" text="确定" class="dialog-button" />
+            <ui:Button name="cancel-button" text="取消" class="dialog-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

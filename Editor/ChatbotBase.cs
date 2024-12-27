@@ -252,32 +252,35 @@ namespace UnityAIHelper.Editor
         /// <summary>
         /// 删除当前会话
         /// </summary>
-        public virtual void DeleteCurrentSession()
+        public virtual void DeleteSession(string sessionId)
         {
             if (sessionStorage == null)
                 throw new InvalidOperationException("会话存储未启用");
 
-            var currentSessionId = chatbotService.Session.sessionId;
-            
+            var isCurrent = sessionId == Session.sessionId;
             // 删除会话
-            sessionStorage.DeleteSession(currentSessionId);
+            sessionStorage.DeleteSession(sessionId);
 
-            // 切换到第一个可用会话
-            var sessions = sessionStorage.GetSessionList();
-            var firstSessionId = sessions.Keys.First();
-            chatbotService.SetSession(sessionStorage.LoadSession(firstSessionId));
-            sessionStorage.SaveCurrentSessionId(firstSessionId);
+            if (isCurrent)
+            {
+                //如果是当前session, 切换到第一个可用会话
+                var sessions = sessionStorage.GetSessionList();
+                var firstSessionId = sessions.Keys.First();
+                chatbotService.SetSession(sessionStorage.LoadSession(firstSessionId));
+                sessionStorage.SaveCurrentSessionId(firstSessionId);
+            }
+
         }
 
         /// <summary>
         /// 重命名当前会话
         /// </summary>
-        public virtual string RenameCurrentSession(string newName)
+        public virtual string RenameSession(string sessionId,string newName)
         {
             if (sessionStorage == null)
                 throw new InvalidOperationException("会话存储未启用");
 
-            return sessionStorage.RenameSession(chatbotService.Session.sessionId, newName);
+            return sessionStorage.RenameSession(sessionId, newName);
         }
 
         /// <summary>

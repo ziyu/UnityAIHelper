@@ -1,23 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:custom="UnityAIHelper.Editor.UI">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" custom="UnityAIHelper.Editor.UI" editor-extension-mode="False">
     <ui:VisualElement name="settings-root" class="settings-root">
         <ui:Label text="助手设置" class="settings-title" />
-        
-        <ui:VisualElement class="settings-content">
-            <!-- Name Field -->
+        <ui:VisualElement class="settings-content" style="justify-content: flex-start; min-height: auto; height: auto;">
             <ui:TextField name="name-field" label="名称" class="settings-field" />
-            
-            <custom:ResizableTextArea name="description-field" label="描述" class="settings-field" />
-            
-            <!-- System Prompt Field -->
+            <UnityAIHelper.Editor.UI.ResizableTextArea name="description-field" label="描述" class="settings-field" />
             <ui:Label text="系统提示词" class="settings-label" />
-            <custom:ResizableTextArea name="system-prompt-field" multiline="true" class="settings-field system-prompt" />
-            
+            <UnityAIHelper.Editor.UI.ResizableTextArea name="system-prompt-field" multiline="true" class="settings-field system-prompt" style="min-height: 80px; align-self: auto; flex-grow: 0; flex-shrink: 1;" />
         </ui:VisualElement>
-        
         <ui:VisualElement name="settings-buttons" class="settings-buttons">
             <ui:Button name="save-button" text="保存" class="settings-button save-button" />
             <ui:Button name="cancel-button" text="取消" class="settings-button cancel-button" />
         </ui:VisualElement>
     </ui:VisualElement>
-</UXML>
+</ui:UXML>

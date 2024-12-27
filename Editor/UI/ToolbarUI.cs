@@ -1,6 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEditor.UIElements;
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -12,15 +13,17 @@ namespace UnityAIHelper.Editor.UI
         private readonly AIHelperWindow window;
         private VisualElement root;
         private DropdownField chatbotDropdown;
-        private DropdownField sessionDropdown;
+        private IndexedDropdownField sessionDropdown;
         private Button newSessionButton;
-        private Button clearHistoryButton;
+        private Button deleteSessionButton;
         private Button settingsButton;
+        private Button renameSessionButton;
         private string defaultSessionName = "新会话";
+        private List<string> currentSessionIds = new List<string>();
 
         // 事件
         public event System.Action OnCreateNewChatbot;
-        public event System.Action OnClearHistory;
+        public event System.Action OnDeleteSession;
         public event System.Action OnOpenSettings;
 
         public ToolbarUI(AIHelperWindow window, VisualElement root)
@@ -41,10 +44,11 @@ namespace UnityAIHelper.Editor.UI
 
             // 获取UI元素引用
             chatbotDropdown = root.Q<DropdownField>("chatbot-dropdown");
-            sessionDropdown = root.Q<DropdownField>("session-dropdown");
+            sessionDropdown = root.Q<IndexedDropdownField>("session-dropdown");
             newSessionButton = root.Q<Button>("new-session-button");
-            clearHistoryButton = root.Q<Button>("clear-history-button");
+            deleteSessionButton = root.Q<Button>("clear-history-button");
             settingsButton = root.Q<Button>("settings-button");
+            renameSessionButton = root.Q<Button>("rename-session-button");
 
             // 初始化下拉菜单
             UpdateChatbotDropdown();
@@ -52,16 +56,24 @@ namespace UnityAIHelper.Editor.UI
 
             // 绑定事件
             chatbotDropdown.RegisterValueChangedCallback(OnChatbotDropdownValueChanged);
-            sessionDropdown.RegisterValueChangedCallback(OnSessionDropdownValueChanged);
-            newSessionButton.clicked += CreateNewSession;
-            clearHistoryButton.clicked += () => 
+            sessionDropdown.OnSelectedIndexChanged += OnSessionIndexChanged;
+            deleteSessionButton.clicked += () =>
             {
-                if (EditorUtility.DisplayDialog("确认", "是否清空所有对话记录？", "确定", "取消"))
+                if (window.currentChatbot == null || sessionDropdown.index < 0)
+                    return;
+
+                var sessionId = currentSessionIds[sessionDropdown.index];
+                if (EditorUtility.DisplayDialog("确认", "是否删除当前对话？", "确定", "取消"))
                 {
-                    OnClearHistory?.Invoke();
+                    window.currentChatbot.DeleteSession(sessionId);
+                    OnDeleteSession?.Invoke();
+                    UpdateSessionDropdown();
+                    window.MarkDirty(AIHelperDirtyFlag.SessionList | AIHelperDirtyFlag.MessageList);
                 }
             };
             settingsButton.clicked += () => OnOpenSettings?.Invoke();
+            newSessionButton.clicked += CreateNewSession;
+            renameSessionButton.clicked += RenameCurrentSession;
         }
 
         private void UpdateChatbotDropdown()
@@ -89,11 +101,13 @@ namespace UnityAIHelper.Editor.UI
             var sessions = window.currentChatbot?.GetSessionList();
             if (sessions != null)
             {
+                currentSessionIds = sessions.Keys.ToList();
                 var choices = new List<string>();
                 
-                foreach (var session in sessions)
+                for (int i = 0; i < currentSessionIds.Count; i++)
                 {
-                    var title = string.IsNullOrEmpty(session.Value) ? defaultSessionName : session.Value;
+                    var sessionId = currentSessionIds[i];
+                    var title = string.IsNullOrEmpty(sessions[sessionId]) ? defaultSessionName : sessions[sessionId];
                     choices.Add(title);
                 }
 
@@ -101,9 +115,8 @@ namespace UnityAIHelper.Editor.UI
                 
                 // 设置当前会话
                 var currentSession = window.currentChatbot.Session;
-                var currentTitle = string.IsNullOrEmpty(currentSession.title) ? 
-                    defaultSessionName : currentSession.title;
-                sessionDropdown.value = currentTitle;
+                var currentIndex = currentSessionIds.IndexOf(currentSession.sessionId);
+                sessionDropdown.index = currentIndex;
                 
                 sessionDropdown.style.display = DisplayStyle.Flex;
                 newSessionButton.style.display = DisplayStyle.Flex;
@@ -160,19 +173,13 @@ namespace UnityAIHelper.Editor.UI
             }
         }
 
-        private void OnSessionDropdownValueChanged(ChangeEvent<string> evt)
+        private void OnSessionIndexChanged(int index)
         {
-            var sessions = window.currentChatbot?.GetSessionList();
-            if (sessions != null)
+            if (index >= 0 && index < currentSessionIds.Count)
             {
-                var session = sessions.FirstOrDefault(s => 
-                    evt.newValue == (string.IsNullOrEmpty(s.Value) ? defaultSessionName : s.Value));
-                
-                if (!string.IsNullOrEmpty(session.Key))
-                {
-                    window.currentChatbot.SwitchSession(session.Key);
-                    window.MarkDirty(AIHelperDirtyFlag.MessageList | AIHelperDirtyFlag.Session);
-                }
+                var sessionId = currentSessionIds[index];
+                window.currentChatbot.SwitchSession(sessionId);
+                window.MarkDirty(AIHelperDirtyFlag.MessageList | AIHelperDirtyFlag.Session);
             }
         }
 
@@ -183,6 +190,25 @@ namespace UnityAIHelper.Editor.UI
                 window.currentChatbot.CreateSession("");
                 window.MarkDirty(AIHelperDirtyFlag.MessageList | AIHelperDirtyFlag.SessionList);
             }
+        }
+
+        private void RenameCurrentSession()
+        {
+            if (window.currentChatbot == null || sessionDropdown.index < 0)
+                return;
+
+            var sessionId = currentSessionIds[sessionDropdown.index];
+            var currentTitle = sessionDropdown.choices[sessionDropdown.index];
+
+            EditorInputDialog.Show("重命名会话", "请输入新的会话名称：", currentTitle, newTitle =>
+            {
+                if (newTitle != null)
+                {
+                    window.currentChatbot.RenameSession(sessionId, newTitle);
+                    UpdateSessionDropdown();
+                    window.MarkDirty(AIHelperDirtyFlag.SessionList);
+                }
+            });
         }
 
         public override void OnUpdateUI()
