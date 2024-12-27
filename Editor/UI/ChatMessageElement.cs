@@ -93,7 +93,10 @@ namespace UnityAIHelper.Editor.UI
             header.Add(senderLabel);
 
             // 时间标签
-            var timeLabel = new Label(DateTimeOffset.FromUnixTimeSeconds(messageInfo.timestamp).LocalDateTime.ToString("HH:mm:ss"));
+            var messageDate = DateTimeOffset.FromUnixTimeSeconds(messageInfo.timestamp).LocalDateTime;
+            var timeLabel = new Label(messageDate.Date == DateTime.Now.Date ?
+                messageDate.ToString("HH:mm:ss") :
+                messageDate.ToString("yyyy-MM-dd HH:mm:ss"));
             timeLabel.AddToClassList("message-time");
             header.Add(timeLabel);
 

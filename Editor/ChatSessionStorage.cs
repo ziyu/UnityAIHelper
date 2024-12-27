@@ -9,6 +9,16 @@ using UnityLLMAPI.Utils.Json;
 namespace UnityAIHelper.Editor
 {
     /// <summary>
+    /// 会话信息，用于会话列表展示
+    /// </summary>
+    public class ChatSessionInfo
+    {
+        public string SessionId { get; set; }
+        public string Title { get; set; }
+        public long LastMessageTime { get; set; }
+    }
+
+    /// <summary>
     /// 管理聊天会话的持久化存储
     /// </summary>
     public class ChatSessionStorage
@@ -52,17 +62,11 @@ namespace UnityAIHelper.Editor
         }
 
         /// <summary>
-        /// 获取所有会话列表，返回 sessionId 到 title 的映射
+        /// 获取所有会话列表，按最后一条消息的时间排序
         /// </summary>
-        public Dictionary<string, string> GetSessionList()
+        public List<ChatSessionInfo> GetSessionList()
         {
-            // 检查缓存是否有效
-            if (IsSessionListCacheValid())
-            {
-                return new Dictionary<string, string>(sessionListCache);
-            }
-
-            var sessions = new Dictionary<string, string>();
+            var sessions = new List<ChatSessionInfo>();
             if (Directory.Exists(storageDir))
             {
                 foreach (var file in Directory.GetFiles(storageDir, $"*{FILE_EXTENSION}"))
@@ -70,45 +74,41 @@ namespace UnityAIHelper.Editor
                     try
                     {
                         var sessionId = Path.GetFileNameWithoutExtension(file);
+                        ChatSession session;
                         
                         // 尝试从缓存获取会话信息
-                        string title;
                         if (sessionCache.TryGetValue(sessionId, out var cached))
                         {
-                            title = cached.session.title;
+                            session = cached.session;
                         }
                         else
                         {
                             var json = File.ReadAllText(file);
-                            var session = ChatSession.FromJson(json);
-                            title = session.title;
+                            session = ChatSession.FromJson(json);
                             
                             // 更新缓存
                             sessionCache[sessionId] = (session, json);
                         }
                         
-                        sessions[sessionId] = title;
+                        // 创建新的会话信息对象
+                        var sessionInfo = new ChatSessionInfo
+                        {
+                            SessionId = sessionId,
+                            Title = session.title,
+                            LastMessageTime = session.messages?.LastOrDefault()?.timestamp ?? 0 
+                        };
+                        
+                        sessions.Add(sessionInfo);
                     }
                     catch (Exception e)
                     {
                         Debug.LogError($"加载会话失败 {file}: {e.Message}");
-                        // 如果加载失败，使用文件名作为会话名
-                        var sessionId = Path.GetFileNameWithoutExtension(file);
-                        sessions[sessionId] = null;
                     }
                 }
             }
             
-            // 如果没有会话，创建一个新会话作为默认会话
-            if (sessions.Count == 0)
-            {
-                var firstSession = CreateSession("");
-                sessions[firstSession.Item1] = firstSession.Item2;
-            }
-            
-            // 更新缓存
-            sessionListCache = new Dictionary<string, string>(sessions);
-            lastSessionListCheck = DateTime.Now;
+            // 按最后一条消息的时间排序
+            sessions.Sort((a, b) => b.LastMessageTime.CompareTo(a.LastMessageTime));
             
             return sessions;
         }

@@ -84,17 +84,21 @@ namespace UnityAIHelper.Editor
             {
                 var sessions = sessionStorage.GetSessionList();
                 var currentSessionId = sessionStorage.LoadCurrentSessionId();
-                if (currentSessionId != null && sessions.ContainsKey(currentSessionId))
+                if (currentSessionId != null && sessions.Any(s => s.SessionId == currentSessionId))
                 {
                     var session = sessionStorage.LoadSession(currentSessionId);
                     chatbotService = new ChatbotService(openAIService, chatbotConfig, session);
                 }
-                else
+                else if(sessions.Count>0)
                 {
-                    var firstSessionId = sessions.Keys.First(); // 使用第一个会话作为当前会话
+                    var firstSessionId = sessions.First().SessionId; // 使用第一个会话作为当前会话
                     var session = sessionStorage.LoadSession(firstSessionId);
                     chatbotService = new ChatbotService(openAIService, chatbotConfig, session);
                     sessionStorage.SaveCurrentSessionId(firstSessionId);
+                }
+                else
+                {
+                    chatbotService = new ChatbotService(openAIService, chatbotConfig);
                 }
             }
             else
@@ -201,9 +205,9 @@ namespace UnityAIHelper.Editor
             SaveSession();
         }
 
-        public Dictionary<string, string> GetSessionList()
+        public List<ChatSessionInfo> GetSessionList()
         {
-            return sessionStorage?.GetSessionList();
+            return sessionStorage?.GetSessionList() ?? new List<ChatSessionInfo>();
         }
 
         /// <summary>
@@ -265,7 +269,7 @@ namespace UnityAIHelper.Editor
             {
                 //如果是当前session, 切换到第一个可用会话
                 var sessions = sessionStorage.GetSessionList();
-                var firstSessionId = sessions.Keys.First();
+                var firstSessionId = sessions.First().SessionId;
                 chatbotService.SetSession(sessionStorage.LoadSession(firstSessionId));
                 sessionStorage.SaveCurrentSessionId(firstSessionId);
             }

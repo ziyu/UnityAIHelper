@@ -36,7 +36,7 @@ namespace UnityAIHelper.Editor
         /// <summary>
         /// 获取会话存储
         /// </summary>
-        Dictionary<string, string> GetSessionList();
+        List<ChatSessionInfo> GetSessionList();
         
         /// <summary>
         /// 切换到指定会话

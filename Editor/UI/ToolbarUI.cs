@@ -106,15 +106,10 @@ namespace UnityAIHelper.Editor.UI
             var sessions = window.currentChatbot?.GetSessionList();
             if (sessions != null)
             {
-                currentSessionIds = sessions.Keys.ToList();
-                var choices = new List<string>();
-                
-                for (int i = 0; i < currentSessionIds.Count; i++)
-                {
-                    var sessionId = currentSessionIds[i];
-                    var title = string.IsNullOrEmpty(sessions[sessionId]) ? defaultSessionName : sessions[sessionId];
-                    choices.Add(title);
-                }
+                currentSessionIds = sessions.Select(s => s.SessionId).ToList();
+                var choices = sessions
+                    .Select(s => string.IsNullOrEmpty(s.Title) ? defaultSessionName : s.Title)
+                    .ToList();
 
                 sessionDropdown.Choices = choices;
                 

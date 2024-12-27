@@ -4,8 +4,8 @@
             <ui:DropdownField name="chatbot-dropdown" picking-mode="position" class="chatbot-dropdown" />
             <ui:Label tabindex="-1" text="当前对话:" parse-escape-sequences="true" display-tooltip-when-elided="true" style="-unity-text-align: upper-center; -unity-font-style: normal;" />
             <aui:IndexedDropdownField name="session-dropdown" picking-mode="position" class="session-dropdown" />
-            <ui:Button name="new-session-button" text="+" picking-mode="position" class="new-session-button" />
             <ui:Button name="rename-session-button" text="✎" picking-mode="position" class="new-session-button" />
+            <ui:Button name="new-session-button" text="+" picking-mode="position" class="new-session-button" />
         </ui:VisualElement>
         <ui:VisualElement name="right-group" class="toolbar-group">
             <ui:Button name="clear-history-button" text="删除对话" picking-mode="position" class="toolbar-button" />
