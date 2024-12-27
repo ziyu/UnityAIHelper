@@ -1,6 +1,6 @@
 {
     "name": "com.ziyu.unity-ai-helper",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "displayName": "Unity AI Helper",
     "description": "An AI-powered Unity editor extension that helps with development tasks through natural language interaction.",
     "unity": "2021.3",
