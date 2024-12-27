@@ -4,6 +4,7 @@ using UnityLLMAPI.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityLLMAPI.Utils.Json;
 
 namespace UnityAIHelper.Editor.UI
 {
@@ -13,6 +14,8 @@ namespace UnityAIHelper.Editor.UI
         private readonly Action<ChatMessageInfo> onDelete;
         private readonly List<ChatMessage> toolResults;
         private Label contentLabel;
+        private VisualElement toolCallContainer;
+        private List<ToolCallElement> toolCallElements;
 
         public ChatMessageElement(
             ChatMessageInfo messageInfo, 
@@ -41,21 +44,7 @@ namespace UnityAIHelper.Editor.UI
             contentLabel.AddToClassList(messageInfo.message.role);
             Add(contentLabel);
 
-            // 如果是助手消息且有工具调用，添加工具调用
-            if (messageInfo.message.role == "assistant" && messageInfo.message.tool_calls != null)
-            {
-                var toolCallsContainer = new VisualElement();
-                toolCallsContainer.AddToClassList("tool-calls-container");
-
-                foreach (var toolCall in messageInfo.message.tool_calls)
-                {
-                    var toolResult = toolResults.FirstOrDefault(r => r.tool_call_id == toolCall.id);
-                    var toolCallElement = new ToolCallElement(toolCall, toolResult);
-                    toolCallsContainer.Add(toolCallElement);
-                }
-
-                Add(toolCallsContainer);
-            }
+            UpdateToolCalls();
         }
 
         private void CopyMessageToClipboard()
@@ -93,7 +82,10 @@ namespace UnityAIHelper.Editor.UI
             header.Add(senderLabel);
 
             // 时间标签
-            var timeLabel = new Label(DateTimeOffset.FromUnixTimeSeconds(messageInfo.timestamp).LocalDateTime.ToString("HH:mm:ss"));
+            var messageDate = DateTimeOffset.FromUnixTimeSeconds(messageInfo.timestamp).LocalDateTime;
+            var timeLabel = new Label(messageDate.Date == DateTime.Now.Date ?
+                messageDate.ToString("HH:mm:ss") :
+                messageDate.ToString("yyyy-MM-dd HH:mm:ss"));
             timeLabel.AddToClassList("message-time");
             header.Add(timeLabel);
 
@@ -103,7 +95,7 @@ namespace UnityAIHelper.Editor.UI
 
             // 复制按钮
             var copyButton = new Button(CopyMessageToClipboard) { text = "Copy" };
-            copyButton.style.width = new Length(60, LengthUnit.Pixel);
+            copyButton.style.width = new Length(45, LengthUnit.Pixel);
             copyButton.AddToClassList("message-action-button");
             copyButton.name = "copy-button"; // Add a name for easy querying
             actions.Add(copyButton);
@@ -130,9 +122,44 @@ namespace UnityAIHelper.Editor.UI
             };
         }
 
-        public void SetContent(string content)
+        public void UpdateMessage()
         {
-            contentLabel.text = content;
+            contentLabel.text = this.messageInfo.message.content;
+            UpdateToolCalls();
+        }
+
+
+        void UpdateToolCalls()
+        {
+            // 如果是助手消息且有工具调用，添加工具调用
+            if (messageInfo.message.role == "assistant" && messageInfo.message.tool_calls != null)
+            {
+                if (toolCallContainer == null)
+                {
+                    toolCallContainer = new VisualElement();
+                    toolCallContainer.AddToClassList("tool-calls-container");
+                    Add(toolCallContainer);
+                    toolCallElements = new();
+                }
+
+                toolCallContainer.Clear();
+                foreach (var toolCall in messageInfo.message.tool_calls)
+                {
+                    var toolResult = toolResults.FirstOrDefault(r => r.tool_call_id == toolCall.id);
+                    var toolCallElement = toolCallElements.Find(x => x.ToolCallId == toolCall.id);
+                    if (toolCallElement == null)
+                    {
+                        toolCallElement=new ToolCallElement(toolCall, toolResult);
+                        toolCallElements.Add(toolCallElement);
+                    }
+                    else
+                    {
+                        toolCallElement.UpdateToolCall(toolCall, toolResult);
+                    }
+                    toolCallElement.SetCollapse(false);
+                    toolCallContainer.Add(toolCallElement);
+                }
+            }
         }
     }
 }

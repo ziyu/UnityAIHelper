@@ -12,8 +12,9 @@ namespace UnityAIHelper.Editor.UI
     /// </summary>
     public class ToolCallElement : VisualElement
     {
-        private readonly ToolCall toolCall;
-        private readonly ChatMessage result;
+        public string ToolCallId => toolCall.id;
+        private ToolCall toolCall;
+        private ChatMessage result;
         private bool initialized;
         private bool collapsed = true;  // Default collapsed state
         private VisualElement contentContainer;  // Container for collapsible content
@@ -66,6 +67,17 @@ namespace UnityAIHelper.Editor.UI
             contentContainer.AddToClassList("tool-content");
             Add(contentContainer);
 
+            UpdateToolCall(this.toolCall, this.result);
+            // Set initial state
+            UpdateCollapseState();
+        }
+
+        public void UpdateToolCall(ToolCall toolCall, ChatMessage result = null)
+        {
+            this.toolCall = toolCall;
+            this.result = result;
+            
+            contentContainer.Clear();
             // 参数
             try
             {
@@ -98,15 +110,17 @@ namespace UnityAIHelper.Editor.UI
                     contentContainer.Add(resultLabel);
                 }
             }
+        }
 
-            // Set initial state
+        public void SetCollapse(bool collapse)
+        {
+            collapsed = collapse;
             UpdateCollapseState();
         }
 
         private void ToggleCollapse()
         {
-            collapsed = !collapsed;
-            UpdateCollapseState();
+            SetCollapse(!collapsed);
         }
 
         private void UpdateCollapseState()

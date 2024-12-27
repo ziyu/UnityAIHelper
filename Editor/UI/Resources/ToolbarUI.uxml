@@ -1,7 +1,15 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
-    <ui:VisualElement name="toolbar" picking-mode="position" class="toolbar-root" style="align-items: stretch; justify-content: flex-start; flex-direction: row;">
-        <ui:DropdownField name="chatbot-dropdown" picking-mode="position" class="chatbot-dropdown" />
-        <ui:Button name="clear-history-button" text="清空对话" picking-mode="position" class="toolbar-button" />
-        <ui:Button name="settings-button" text="设置" picking-mode="position" class="toolbar-button" />
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:aui="UnityAIHelper.Editor.UI" editor-extension-mode="False">
+    <ui:VisualElement name="toolbar" picking-mode="position" class="toolbar-root">
+        <ui:VisualElement name="left-group" class="toolbar-group">
+            <ui:DropdownField name="chatbot-dropdown" picking-mode="position" class="chatbot-dropdown" />
+            <ui:Label tabindex="-1" text="当前对话:" parse-escape-sequences="true" display-tooltip-when-elided="true" style="-unity-text-align: upper-center; -unity-font-style: normal;" />
+            <aui:IndexedDropdownField name="session-dropdown" picking-mode="position" class="session-dropdown" />
+            <ui:Button name="rename-session-button" text="✎" picking-mode="position" class="new-session-button" />
+            <ui:Button name="new-session-button" text="+" picking-mode="position" class="new-session-button" />
+        </ui:VisualElement>
+        <ui:VisualElement name="right-group" class="toolbar-group">
+            <ui:Button name="clear-history-button" text="删除对话" picking-mode="position" class="toolbar-button" />
+            <ui:Button name="settings-button" text="设置" picking-mode="position" class="toolbar-button" />
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

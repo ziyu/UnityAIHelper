@@ -80,7 +80,6 @@ namespace UnityAIHelper.Editor
             // 绑定事件
             inputAreaUI.OnSendMessage += SendMessage;
             toolbarUI.OnCreateNewChatbot += ShowNewChat;
-            toolbarUI.OnClearHistory += OnClearHistory;
             toolbarUI.OnOpenSettings += ShowSettings;
             newChatbotUI.OnCancel += HideModal;
             newChatbotUI.OnCreate += CreateNewChatbot;
@@ -165,11 +164,12 @@ namespace UnityAIHelper.Editor
 
         private void HandleDeleteMessage(ChatMessageInfo message)
         {
+            if(isProcessing)return;
             if (EditorUtility.DisplayDialog("确认删除", "确定要删除这条消息吗？", "确定", "取消"))
             {
                 var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
                 currentBot.DeleteMessage(message);
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.MessageList);
             }
         }
 
@@ -177,7 +177,8 @@ namespace UnityAIHelper.Editor
         {
             currentStreamingMessage = message;
             isStreaming = true;
-            MarkDirty(AIHelperDirtyFlag.Message);
+            MarkDirty(AIHelperDirtyFlag.StreamingMessage);
+            
         }
 
 
@@ -223,7 +224,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
             else if (isProcessing)
             {
@@ -232,7 +233,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
@@ -243,15 +244,20 @@ namespace UnityAIHelper.Editor
             isProcessing = true;
             isStreaming = false;
             currentStreamingMessage = null;
+            var msgCount = currentChatbot.GetChatHistory().Count;
+            var isNewDialog = msgCount is 0 or 1;
 
             // 创建新的CancellationTokenSource
             cancellationTokenSource?.Dispose();
             cancellationTokenSource = new CancellationTokenSource();
-            MarkDirty(AIHelperDirtyFlag.Message);
-
+            MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             try
             {
-                await ChatbotManager.Instance.GetCurrentChatbot().SendMessageAsync(message, cancellationTokenSource.Token);
+                var result=await currentChatbot.SendMessageAsync(message, cancellationTokenSource.Token);
+                if (!string.IsNullOrEmpty(result.content)&&isNewDialog)
+                {
+                    RenameSessionByAI();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -268,21 +274,21 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
         internal async void ContinueMessage()
         {
-            if (!isProcessing) return;
-
+            if (!currentChatbot.HasPendingMessage) return;
+            MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.StreamingMessage);
             try
             {
                 // 创建新的CancellationTokenSource
                 cancellationTokenSource?.Dispose();
                 cancellationTokenSource = new CancellationTokenSource();
 
-                await ChatbotManager.Instance.GetCurrentChatbot().ContinueMessageAsync(cancellationTokenSource.Token);
+                await currentChatbot.ContinueMessageAsync(cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
@@ -299,7 +305,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
@@ -336,7 +342,7 @@ namespace UnityAIHelper.Editor
         private void OnClearHistory()
         {
             ChatbotManager.Instance.GetCurrentChatbot().ClearHistory();
-            MarkDirty(AIHelperDirtyFlag.Message);
+            MarkDirty(AIHelperDirtyFlag.MessageList);
         }
 
         private void ShowModal()
@@ -361,6 +367,26 @@ namespace UnityAIHelper.Editor
             if (flag == AIHelperDirtyFlag.None) return dirtyFlag != AIHelperDirtyFlag.None;
             
             return  (dirtyFlag & flag) == flag;
+        }
+
+        internal void ReloadSession()
+        {
+            if (currentChatbot != null)
+            {
+                currentChatbot.ReloadSession();
+                MarkDirty(AIHelperDirtyFlag.MessageList);
+            }
+        }
+
+        async void RenameSessionByAI()
+        {
+            var result = await UtilsAI.GenerateDialogName(currentChatbot.GetChatHistory());
+            if (!string.IsNullOrEmpty(result))
+            {
+                // 更新会话名称
+                currentChatbot.RenameSession(currentChatbot.Session.sessionId, result);
+                MarkDirty(AIHelperDirtyFlag.SessionList);
+            }
         }
     }
 }
