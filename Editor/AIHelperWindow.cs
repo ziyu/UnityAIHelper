@@ -178,6 +178,7 @@ namespace UnityAIHelper.Editor
             currentStreamingMessage = message;
             isStreaming = true;
             MarkDirty(AIHelperDirtyFlag.StreamingMessage);
+            
         }
 
 

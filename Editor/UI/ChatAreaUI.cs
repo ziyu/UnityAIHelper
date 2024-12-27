@@ -104,6 +104,7 @@ namespace UnityAIHelper.Editor.UI
                 {
                     if (_streamingElement == null|| window.currentStreamingMessage!=lastStreamingMessage)
                     {
+                        _streamingElement?.UpdateMessage();
                         _streamingElement = new ChatMessageElement(
                             new ChatMessageInfo(window.currentStreamingMessage)
                         );
@@ -112,7 +113,7 @@ namespace UnityAIHelper.Editor.UI
                     }
                     else
                     {
-                        _streamingElement.SetContent( window.currentStreamingMessage.content);
+                        _streamingElement.UpdateMessage();
                     }
 
                     shouldScrollToBottom = true;
