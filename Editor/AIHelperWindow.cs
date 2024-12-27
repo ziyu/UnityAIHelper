@@ -223,7 +223,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
             else if (isProcessing)
             {
@@ -232,7 +232,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
@@ -243,14 +243,20 @@ namespace UnityAIHelper.Editor
             isProcessing = true;
             isStreaming = false;
             currentStreamingMessage = null;
+            var msgCount = currentChatbot.GetChatHistory().Count;
+            var isNewDialog = msgCount is 0 or 1;
 
             // 创建新的CancellationTokenSource
             cancellationTokenSource?.Dispose();
             cancellationTokenSource = new CancellationTokenSource();
-            MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
+            MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             try
             {
-                await ChatbotManager.Instance.GetCurrentChatbot().SendMessageAsync(message, cancellationTokenSource.Token);
+                var result=await currentChatbot.SendMessageAsync(message, cancellationTokenSource.Token);
+                if (!string.IsNullOrEmpty(result.content)&&isNewDialog)
+                {
+                    RenameSessionByAI();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -267,21 +273,21 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
         internal async void ContinueMessage()
         {
-            if (!isProcessing) return;
-
+            if (!currentChatbot.HasPendingMessage) return;
+            MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.StreamingMessage);
             try
             {
                 // 创建新的CancellationTokenSource
                 cancellationTokenSource?.Dispose();
                 cancellationTokenSource = new CancellationTokenSource();
 
-                await ChatbotManager.Instance.GetCurrentChatbot().ContinueMessageAsync(cancellationTokenSource.Token);
+                await currentChatbot.ContinueMessageAsync(cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
@@ -298,7 +304,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
+                MarkDirty(AIHelperDirtyFlag.SendingMessage|AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
@@ -368,6 +374,17 @@ namespace UnityAIHelper.Editor
             {
                 currentChatbot.ReloadSession();
                 MarkDirty(AIHelperDirtyFlag.MessageList);
+            }
+        }
+
+        async void RenameSessionByAI()
+        {
+            var result = await UtilsAI.GenerateDialogName(currentChatbot.GetChatHistory());
+            if (!string.IsNullOrEmpty(result))
+            {
+                // 更新会话名称
+                currentChatbot.RenameSession(currentChatbot.Session.sessionId, result);
+                MarkDirty(AIHelperDirtyFlag.SessionList);
             }
         }
     }

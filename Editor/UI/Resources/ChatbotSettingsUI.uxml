@@ -1,13 +1,13 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" custom="UnityAIHelper.Editor.UI" editor-extension-mode="False">
-    <ui:VisualElement name="settings-root" class="settings-root">
+    <ui:VisualElement name="settings-root" class="settings-root" style="flex-direction: column; align-items: stretch;">
         <ui:Label text="助手设置" class="settings-title" />
-        <ui:VisualElement class="settings-content" style="justify-content: flex-start; min-height: auto; height: auto;">
-            <ui:TextField name="name-field" label="名称" class="settings-field" />
-            <UnityAIHelper.Editor.UI.ResizableTextArea name="description-field" label="描述" class="settings-field" />
-            <ui:Label text="系统提示词" class="settings-label" />
-            <UnityAIHelper.Editor.UI.ResizableTextArea name="system-prompt-field" multiline="true" class="settings-field system-prompt" style="min-height: 80px; align-self: auto; flex-grow: 0; flex-shrink: 1;" />
+        <ui:VisualElement class="settings-content" style="justify-content: flex-start; min-height: auto; height: auto; overflow: visible; flex-direction: column; flex-grow: 0; flex-shrink: 1; align-items: stretch;">
+            <ui:TextField name="name-field" label="名称" class="settings-field" style="flex-shrink: 1; height: 60px;" />
+            <UnityAIHelper.Editor.UI.ResizableTextArea name="description-field" label="描述" class="settings-field" style="flex-grow: 0; flex-shrink: 1;" />
+            <ui:Label text="系统提示词" class="settings-label" style="flex-shrink: 1; height: 60px;" />
+            <UnityAIHelper.Editor.UI.ResizableTextArea name="system-prompt-field" multiline="true" class="settings-field system-prompt" style="align-self: auto; flex-grow: 0; flex-shrink: 1; height: 95px; align-items: stretch; justify-content: flex-start; width: auto; min-height: 95px;" />
         </ui:VisualElement>
-        <ui:VisualElement name="settings-buttons" class="settings-buttons">
+        <ui:VisualElement name="settings-buttons" class="settings-buttons" style="flex-direction: row; flex-shrink: 1; align-items: stretch;">
             <ui:Button name="save-button" text="保存" class="settings-button save-button" />
             <ui:Button name="cancel-button" text="取消" class="settings-button cancel-button" />
         </ui:VisualElement>

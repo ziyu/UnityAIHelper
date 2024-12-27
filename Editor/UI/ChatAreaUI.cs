@@ -97,7 +97,7 @@ namespace UnityAIHelper.Editor.UI
                 var chatHistory = window.currentChatbot.GetChatHistory();
                 UpdateMessageList(chatHistory);
             }
-            else if (window.IsDirty(AIHelperDirtyFlag.StreamingMessage))
+            else if (window.IsDirty(AIHelperDirtyFlag.StreamingMessage)||window.IsDirty(AIHelperDirtyFlag.SendingMessage))
             {
                 // 添加正在流式传输的消息
                 if (window.isStreaming &&  window.currentStreamingMessage != null)

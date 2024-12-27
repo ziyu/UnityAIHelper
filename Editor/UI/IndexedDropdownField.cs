@@ -19,7 +19,7 @@ namespace UnityAIHelper.Editor.UI
 
         public event Action<int> OnSelectedIndexChanged;
 
-        public IReadOnlyList<string> choices
+        public IReadOnlyList<string> Choices
         {
             get => displayTexts;
             set
@@ -46,7 +46,7 @@ namespace UnityAIHelper.Editor.UI
                 displayTexts.AddRange(uniqueTexts);
                 
                 var indices = new List<int>();
-                for (int i = 0; i < uniqueTexts.Count; i++)
+                for (int i = 0; i < displayTexts.Count; i++)
                 {
                     indices.Add(i);
                 }
@@ -54,13 +54,13 @@ namespace UnityAIHelper.Editor.UI
                 popupField.choices = indices;
                 if (indices.Count > 0)
                 {
-                    popupField.value = indices[0];
+                    popupField.SetValueWithoutNotify(indices[0]);
                     selectedIndex = indices[0];
                 }
             }
         }
 
-        public int index
+        public int Index
         {
             get => selectedIndex;
             set
@@ -76,7 +76,8 @@ namespace UnityAIHelper.Editor.UI
             }
         }
 
-        public string selectedText
+
+        public string SelectedText
         {
             get => selectedIndex >= 0 && selectedIndex < displayTexts.Count ? displayTexts[selectedIndex] : string.Empty;
             set
@@ -86,7 +87,7 @@ namespace UnityAIHelper.Editor.UI
                     var index = displayTexts.IndexOf(value);
                     if (index >= 0)
                     {
-                        this.index = index;
+                        this.Index = index;
                     }
                 }
             }
@@ -95,15 +96,15 @@ namespace UnityAIHelper.Editor.UI
         public IndexedDropdownField()
         {
             popupField = new PopupField<int>();
-            popupField.formatListItemCallback = (index) =>
+            popupField.formatListItemCallback = (i) =>
             {
-                if (index >= displayTexts.Count) return "";
-                return displayTexts[index];
+                if (i >= displayTexts.Count) return "";
+                return displayTexts[i];
             };
-            popupField.formatSelectedValueCallback = (index) =>
+            popupField.formatSelectedValueCallback = (i) =>
             {
-                if (index >= displayTexts.Count) return "";
-                return displayTexts[index];
+                if (i >= displayTexts.Count) return "";
+                return displayTexts[i];
             };
             
             popupField.RegisterValueChangedCallback(evt =>
@@ -114,6 +115,19 @@ namespace UnityAIHelper.Editor.UI
 
             Add(popupField);
             style.flexGrow = 1;
+        }
+        
+        
+        public void SetIndexWithoutNotify(int newIndex)
+        {
+            if (newIndex >= -1 && newIndex < displayTexts.Count)
+            {
+                selectedIndex = newIndex;
+                if (newIndex >= 0)
+                {
+                    popupField.SetValueWithoutNotify(newIndex);
+                }
+            }
         }
     }
 }

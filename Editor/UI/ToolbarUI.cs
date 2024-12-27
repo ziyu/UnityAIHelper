@@ -5,6 +5,10 @@ using UnityEditor.UIElements;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text;
+using UnityLLMAPI.Models;
+using UnityLLMAPI.Utils.Json;
+using System.Threading.Tasks;
 
 namespace UnityAIHelper.Editor.UI
 {
@@ -56,13 +60,14 @@ namespace UnityAIHelper.Editor.UI
 
             // 绑定事件
             chatbotDropdown.RegisterValueChangedCallback(OnChatbotDropdownValueChanged);
+            sessionDropdown.OnSelectedIndexChanged -= OnSessionIndexChanged;
             sessionDropdown.OnSelectedIndexChanged += OnSessionIndexChanged;
             deleteSessionButton.clicked += () =>
             {
-                if (window.currentChatbot == null || sessionDropdown.index < 0)
+                if (window.currentChatbot == null || sessionDropdown.Index < 0)
                     return;
 
-                var sessionId = currentSessionIds[sessionDropdown.index];
+                var sessionId = currentSessionIds[sessionDropdown.Index];
                 if (EditorUtility.DisplayDialog("确认", "是否删除当前对话？", "确定", "取消"))
                 {
                     window.currentChatbot.DeleteSession(sessionId);
@@ -111,12 +116,12 @@ namespace UnityAIHelper.Editor.UI
                     choices.Add(title);
                 }
 
-                sessionDropdown.choices = choices;
+                sessionDropdown.Choices = choices;
                 
                 // 设置当前会话
                 var currentSession = window.currentChatbot.Session;
                 var currentIndex = currentSessionIds.IndexOf(currentSession.sessionId);
-                sessionDropdown.index = currentIndex;
+                sessionDropdown.SetIndexWithoutNotify(currentIndex);
                 
                 sessionDropdown.style.display = DisplayStyle.Flex;
                 newSessionButton.style.display = DisplayStyle.Flex;
@@ -185,20 +190,19 @@ namespace UnityAIHelper.Editor.UI
 
         private void CreateNewSession()
         {
-            if (window.currentChatbot != null)
-            {
-                window.currentChatbot.CreateSession("");
-                window.MarkDirty(AIHelperDirtyFlag.MessageList | AIHelperDirtyFlag.SessionList);
-            }
+            if (window.currentChatbot == null)return;
+            
+            window.currentChatbot.CreateSession("");
+            window.MarkDirty(AIHelperDirtyFlag.MessageList | AIHelperDirtyFlag.SessionList);
         }
 
         private void RenameCurrentSession()
         {
-            if (window.currentChatbot == null || sessionDropdown.index < 0)
+            if (window.currentChatbot == null || sessionDropdown.Index < 0)
                 return;
 
-            var sessionId = currentSessionIds[sessionDropdown.index];
-            var currentTitle = sessionDropdown.choices[sessionDropdown.index];
+            var sessionId = currentSessionIds[sessionDropdown.Index];
+            var currentTitle = sessionDropdown.Choices[sessionDropdown.Index];
 
             EditorInputDialog.Show("重命名会话", "请输入新的会话名称：", currentTitle, newTitle =>
             {
@@ -208,22 +212,37 @@ namespace UnityAIHelper.Editor.UI
                     UpdateSessionDropdown();
                     window.MarkDirty(AIHelperDirtyFlag.SessionList);
                 }
+            },
+            async currentText => 
+            {
+                try
+                {
+                    var chatHistory = window.currentChatbot.GetChatHistory();
+                    if (chatHistory != null)
+                    {
+                        var generatedName = await UtilsAI.GenerateDialogName(chatHistory);
+                        if (!string.IsNullOrEmpty(generatedName))
+                        {
+                            return generatedName;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Failed to generate AI session name: {ex.Message}");
+                }
+                return null;
             });
         }
 
         public override void OnUpdateUI()
         {
-            if (window.IsDirty(AIHelperDirtyFlag.Chatbot))
+            if (window.IsDirty(AIHelperDirtyFlag.Chatbot)||window.IsDirty(AIHelperDirtyFlag.ChatbotList))
             {
                 UpdateChatbotDropdown();
                 UpdateSessionDropdown();
             }
-            else if (window.IsDirty(AIHelperDirtyFlag.ChatbotList))
-            {
-                UpdateChatbotDropdown();
-                UpdateSessionDropdown();
-            }
-            else if (window.IsDirty(AIHelperDirtyFlag.Session | AIHelperDirtyFlag.SessionList))
+            else if (window.IsDirty(AIHelperDirtyFlag.Session )||window.IsDirty(AIHelperDirtyFlag.SessionList ))
             {
                 UpdateSessionDropdown();
             }
