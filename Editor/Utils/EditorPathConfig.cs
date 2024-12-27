@@ -6,7 +6,7 @@ namespace UnityAIHelper.Editor
     public static class EditorPathConfig
     {
         // 包和项目根路径
-        public const string PACKAGE_NAME = "com.unity.aihelper";
+        public const string PACKAGE_NAME = "com.ziyu.unity-ai-helper";
         public const string PACKAGE_ROOT = "Packages/" + PACKAGE_NAME;
         public const string ASSETS_ROOT = "Assets/UnityAIHelper";
 
