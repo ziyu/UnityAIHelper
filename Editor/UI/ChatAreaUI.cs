@@ -21,7 +21,6 @@ namespace UnityAIHelper.Editor.UI
         // 缓存过滤后的消息列表
         private List<ChatMessageInfo> filteredMessages;
         private List<ChatMessage> toolResults;
-        private int lastMessageCount;
         private ChatMessage lastStreamingMessage;
         private ChatMessageElement _streamingElement;
 
@@ -53,10 +52,6 @@ namespace UnityAIHelper.Editor.UI
         /// </summary>
         void UpdateMessageList(IReadOnlyList<ChatMessageInfo> chatHistory)
         {
-            // 检查并更新过滤后的消息列表
-            if (chatHistory.Count == lastMessageCount) return;
-            // 更新缓存状态
-            lastMessageCount = chatHistory.Count;
 
             // 清空并重新填充列表
             filteredMessages.Clear();
@@ -97,39 +92,41 @@ namespace UnityAIHelper.Editor.UI
 
         public override void OnUpdateUI()
         {
-            if(!window.IsDirty(AIHelperDirtyFlag.Message))return;
-            
-            var chatHistory = window.currentChatbot.GetChatHistory();
-            UpdateMessageList(chatHistory);
-            
-            // 添加正在流式传输的消息
-            if (window.isStreaming &&  window.currentStreamingMessage != null)
+            if (window.IsDirty(AIHelperDirtyFlag.MessageList))
             {
-                if (_streamingElement == null|| window.currentStreamingMessage!=lastStreamingMessage)
+                var chatHistory = window.currentChatbot.GetChatHistory();
+                UpdateMessageList(chatHistory);
+            }
+            else if (window.IsDirty(AIHelperDirtyFlag.StreamingMessage))
+            {
+                // 添加正在流式传输的消息
+                if (window.isStreaming &&  window.currentStreamingMessage != null)
                 {
-                    _streamingElement = new ChatMessageElement(
-                        new ChatMessageInfo(window.currentStreamingMessage)
-                    );
-                    scrollView.Add(_streamingElement);
-                    lastStreamingMessage = window.currentStreamingMessage;
+                    if (_streamingElement == null|| window.currentStreamingMessage!=lastStreamingMessage)
+                    {
+                        _streamingElement = new ChatMessageElement(
+                            new ChatMessageInfo(window.currentStreamingMessage)
+                        );
+                        scrollView.Add(_streamingElement);
+                        lastStreamingMessage = window.currentStreamingMessage;
+                    }
+                    else
+                    {
+                        _streamingElement.SetContent( window.currentStreamingMessage.content);
+                    }
+
+                    shouldScrollToBottom = true;
                 }
                 else
                 {
-                    _streamingElement.SetContent( window.currentStreamingMessage.content);
-                }
-
-                shouldScrollToBottom = true;
-            }
-            else
-            {
-                if (_streamingElement != null)
-                {
-                    if(scrollView.Contains(_streamingElement))
-                        scrollView.Remove(_streamingElement);
-                    _streamingElement = null;
+                    if (_streamingElement != null)
+                    {
+                        if(scrollView.Contains(_streamingElement))
+                            scrollView.Remove(_streamingElement);
+                        _streamingElement = null;
+                    }
                 }
             }
-            
             
             
             // 处理滚动

@@ -103,7 +103,7 @@ namespace UnityAIHelper.Editor.UI
 
             // 复制按钮
             var copyButton = new Button(CopyMessageToClipboard) { text = "Copy" };
-            copyButton.style.width = new Length(60, LengthUnit.Pixel);
+            copyButton.style.width = new Length(45, LengthUnit.Pixel);
             copyButton.AddToClassList("message-action-button");
             copyButton.name = "copy-button"; // Add a name for easy querying
             actions.Add(copyButton);

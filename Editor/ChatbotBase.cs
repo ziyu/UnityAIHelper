@@ -27,10 +27,11 @@ namespace UnityAIHelper.Editor
         public virtual string Name => name;
         public virtual string Description => description;
         public virtual string SystemPrompt => systemPrompt;
+        public ChatSession Session => chatbotService.Session;
         
         public event Action<ChatMessage> OnStreamingMessage;
 
-        protected ChatbotBase(string systemPrompt,bool useTools=true, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
+        protected ChatbotBase(string systemPrompt, bool useTools = true, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
         {
             this.systemPrompt = systemPrompt;
 
@@ -78,15 +79,29 @@ namespace UnityAIHelper.Editor
                 }
             }
 
-            // 7. 加载会话（如果需要）
-            ChatSession session = null;
+            // 7. 初始化会话
             if (useSessionStorage)
             {
-                session = LoadSession();
+                var sessions = sessionStorage.GetSessionList();
+                var currentSessionId = sessionStorage.LoadCurrentSessionId();
+                if (currentSessionId != null && sessions.ContainsKey(currentSessionId))
+                {
+                    var session = sessionStorage.LoadSession(currentSessionId);
+                    chatbotService = new ChatbotService(openAIService, chatbotConfig, session);
+                }
+                else
+                {
+                    var firstSessionId = sessions.Keys.First(); // 使用第一个会话作为当前会话
+                    var session = sessionStorage.LoadSession(firstSessionId);
+                    chatbotService = new ChatbotService(openAIService, chatbotConfig, session);
+                    sessionStorage.SaveCurrentSessionId(firstSessionId);
+                }
+            }
+            else
+            {
+                chatbotService = new ChatbotService(openAIService, chatbotConfig);
             }
             
-            //8. 新建ChatbotService
-            chatbotService = session == null ? new ChatbotService(openAIService, chatbotConfig) : new ChatbotService(openAIService, chatbotConfig, session);
             chatbotService.StateChanged += OnChatStateChanged;
         }
 
@@ -164,7 +179,6 @@ namespace UnityAIHelper.Editor
             messageInfo.message.content = newContent;
             messageInfo.timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             
-            
             chatbotService.ClearPending();
             // 移除该消息之后的所有消息
             if (index < messages.Count - 1)
@@ -184,37 +198,102 @@ namespace UnityAIHelper.Editor
                 throw new ArgumentNullException(nameof(messageInfo));
 
             chatbotService.DeleteMessage(messageInfo.messageId);
-            
             SaveSession();
         }
 
-        /// <summary>
-        /// 重新加载会话
-        /// </summary>
-        public void ReloadSession()
+        public Dictionary<string, string> GetSessionList()
         {
-            var session = LoadSession();
-            this.chatbotService.SetSession(session);
-        }
-        
-        /// <summary>
-        /// 加载会话
-        /// </summary>
-        protected virtual ChatSession LoadSession()
-        {
-            if (sessionStorage == null) return null;
-
-            try 
-            {
-                return sessionStorage.LoadSession();
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"加载会话失败: {ex.Message}");
-            }
-            return null;
+            return sessionStorage?.GetSessionList();
         }
 
+        /// <summary>
+        /// 切换到指定会话
+        /// </summary>
+        public virtual void SwitchSession(string sessionId)
+        {
+            if (sessionStorage == null)
+                throw new InvalidOperationException("会话存储未启用");
+
+            // 保存当前会话
+            SaveSession();
+            
+            Debug.Log("SwitchSession:" + sessionId);
+            // 加载新会话
+            var session = sessionStorage.LoadSession(sessionId);
+            if (session == null)
+                throw new ArgumentException($"会话 {sessionId} 不存在");
+
+            chatbotService.SetSession(session);
+            sessionStorage.SaveCurrentSessionId(sessionId);
+        }
+
+        /// <summary>
+        /// 创建新会话
+        /// </summary>
+        public virtual (string sessionId, string title) CreateSession(string sessionName = null)
+        {
+            if (sessionStorage == null)
+                throw new InvalidOperationException("会话存储未启用");
+
+            // 保存当前会话
+            SaveSession();
+
+            // 创建新会话
+            var result = sessionStorage.CreateSession(sessionName);
+            
+            // 切换到新会话
+            var session = sessionStorage.LoadSession(result.Item1);
+            chatbotService.SetSession(session);
+            sessionStorage.SaveCurrentSessionId(result.Item1);
+
+            return result;
+        }
+
+        /// <summary>
+        /// 删除当前会话
+        /// </summary>
+        public virtual void DeleteCurrentSession()
+        {
+            if (sessionStorage == null)
+                throw new InvalidOperationException("会话存储未启用");
+
+            var currentSessionId = chatbotService.Session.sessionId;
+            
+            // 删除会话
+            sessionStorage.DeleteSession(currentSessionId);
+
+            // 切换到第一个可用会话
+            var sessions = sessionStorage.GetSessionList();
+            var firstSessionId = sessions.Keys.First();
+            chatbotService.SetSession(sessionStorage.LoadSession(firstSessionId));
+            sessionStorage.SaveCurrentSessionId(firstSessionId);
+        }
+
+        /// <summary>
+        /// 重命名当前会话
+        /// </summary>
+        public virtual string RenameCurrentSession(string newName)
+        {
+            if (sessionStorage == null)
+                throw new InvalidOperationException("会话存储未启用");
+
+            return sessionStorage.RenameSession(chatbotService.Session.sessionId, newName);
+        }
+
+        /// <summary>
+        /// 重新加载当前会话
+        /// </summary>
+        public virtual void ReloadSession()
+        {
+            if (sessionStorage == null) return;
+
+            var session = sessionStorage.LoadSession(chatbotService.Session.sessionId);
+            chatbotService.SetSession(session);
+        }
+
+        /// <summary>
+        /// 保存当前会话
+        /// </summary>
         public virtual void SaveSession()
         {
             if (sessionStorage == null) return;

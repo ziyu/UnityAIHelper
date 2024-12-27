@@ -165,11 +165,12 @@ namespace UnityAIHelper.Editor
 
         private void HandleDeleteMessage(ChatMessageInfo message)
         {
+            if(isProcessing)return;
             if (EditorUtility.DisplayDialog("确认删除", "确定要删除这条消息吗？", "确定", "取消"))
             {
                 var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
                 currentBot.DeleteMessage(message);
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.MessageList);
             }
         }
 
@@ -177,7 +178,7 @@ namespace UnityAIHelper.Editor
         {
             currentStreamingMessage = message;
             isStreaming = true;
-            MarkDirty(AIHelperDirtyFlag.Message);
+            MarkDirty(AIHelperDirtyFlag.StreamingMessage);
         }
 
 
@@ -223,7 +224,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
             else if (isProcessing)
             {
@@ -232,7 +233,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
@@ -247,8 +248,7 @@ namespace UnityAIHelper.Editor
             // 创建新的CancellationTokenSource
             cancellationTokenSource?.Dispose();
             cancellationTokenSource = new CancellationTokenSource();
-            MarkDirty(AIHelperDirtyFlag.Message);
-
+            MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             try
             {
                 await ChatbotManager.Instance.GetCurrentChatbot().SendMessageAsync(message, cancellationTokenSource.Token);
@@ -268,7 +268,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
@@ -299,7 +299,7 @@ namespace UnityAIHelper.Editor
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
-                MarkDirty(AIHelperDirtyFlag.Message);
+                MarkDirty(AIHelperDirtyFlag.MessageList|AIHelperDirtyFlag.StreamingMessage);
             }
         }
 
@@ -336,7 +336,7 @@ namespace UnityAIHelper.Editor
         private void OnClearHistory()
         {
             ChatbotManager.Instance.GetCurrentChatbot().ClearHistory();
-            MarkDirty(AIHelperDirtyFlag.Message);
+            MarkDirty(AIHelperDirtyFlag.MessageList);
         }
 
         private void ShowModal()
@@ -361,6 +361,15 @@ namespace UnityAIHelper.Editor
             if (flag == AIHelperDirtyFlag.None) return dirtyFlag != AIHelperDirtyFlag.None;
             
             return  (dirtyFlag & flag) == flag;
+        }
+
+        internal void ReloadSession()
+        {
+            if (currentChatbot != null)
+            {
+                currentChatbot.ReloadSession();
+                MarkDirty(AIHelperDirtyFlag.MessageList);
+            }
         }
     }
 }

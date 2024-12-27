@@ -9,15 +9,38 @@
     min-height: 36px;
 }
 
-.chatbot-dropdown {
-    flex: 1;
-    margin-right: 12px;
-    min-width: 200px;
+.toolbar-group {
+    flex-direction: row;
+    align-items: center;
 }
 
-.chatbot-dropdown .unity-popup-field__input {
+.chatbot-dropdown {
+    min-width: 160px;
+    margin-right: 8px;
+}
+
+.session-dropdown {
+    min-width: 140px;
+    margin-right: 4px;
+}
+
+.new-session-button {
+    width: 24px;
     height: 24px;
-    -unity-text-align: middle-left;
+    padding: 0;
+    margin-right: 8px;
+    border-radius: 3px;
+    background-color: var(--unity-colors-button-background);
+    border-color: var(--unity-colors-button-border);
+    -unity-text-align: middle-center;
+}
+
+.new-session-button:hover {
+    background-color: var(--unity-colors-button-background-hover);
+}
+
+.new-session-button:active {
+    background-color: var(--unity-colors-button-background-pressed);
 }
 
 .toolbar-button {
@@ -44,4 +67,13 @@
 
 .unity-popup-field__label {
     display: none;
+}
+
+.unity-popup-field__input {
+    height: 24px;
+    -unity-text-align: middle-left;
+}
+
+.unity-base-dropdown__container-inner {
+    max-height: 300px;
 }

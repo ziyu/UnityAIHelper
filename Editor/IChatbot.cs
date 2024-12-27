@@ -12,6 +12,7 @@ namespace UnityAIHelper.Editor
         string Name { get; }
         string Description { get; }
         string SystemPrompt { get; }
+        ChatSession Session { get; }
         
         event Action<ChatMessage> OnStreamingMessage;
         Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default);
@@ -31,10 +32,44 @@ namespace UnityAIHelper.Editor
         void DeleteMessage(ChatMessageInfo messageInfo);
         
         bool HasPendingMessage { get; }
+        
+        /// <summary>
+        /// 获取会话存储
+        /// </summary>
+        Dictionary<string, string> GetSessionList();
+        
+        /// <summary>
+        /// 切换到指定会话
+        /// </summary>
+        void SwitchSession(string sessionId);
+        
+        /// <summary>
+        /// 创建新会话
+        /// </summary>
+        (string sessionId, string title) CreateSession(string sessionName = null);
+        
+        /// <summary>
+        /// 删除当前会话
+        /// </summary>
+        void DeleteCurrentSession();
+        
+        /// <summary>
+        /// 重命名当前会话
+        /// </summary>
+        string RenameCurrentSession(string newName);
+        
+        /// <summary>
+        /// 重新加载当前会话
+        /// </summary>
+        void ReloadSession();
+        
+        /// <summary>
+        /// 保存当前会话
+        /// </summary>
+        void SaveSession();
+        
         void ClearPendingState();
         
-        void SaveSession();
-
         void UpdateSettings(string name, string description, string systemPrompt);
     }
 }
