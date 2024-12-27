@@ -3,6 +3,7 @@ using UnityEngine.UIElements;
 using UnityLLMAPI.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using UnityEditor;
 
 namespace UnityAIHelper.Editor.UI
 {
@@ -46,6 +47,14 @@ namespace UnityAIHelper.Editor.UI
             header.AddToClassList("tool-call-header");
             header.RegisterCallback<ClickEvent>(evt => ToggleCollapse());
 
+            // Expand/collapse text arrow
+            var arrow = new Label(collapsed ? "▶" : "▼");
+            arrow.AddToClassList("tool-call-arrow");
+            arrow.style.marginRight = 4;
+            arrow.style.unityTextAlign = TextAnchor.MiddleCenter;
+            arrow.style.width = 16;
+            header.Add(arrow);
+
             var nameLabel = new Label("工具调用 "+toolCall.function.name);
             nameLabel.AddToClassList("tool-name");
             header.Add(nameLabel);
@@ -61,7 +70,7 @@ namespace UnityAIHelper.Editor.UI
             try
             {
                 var argsJson = JToken.Parse(toolCall.function.arguments);
-                var argsElement = new JsonObjectUIElement(argsJson);
+                var argsElement = new JsonObjectUIElement(argsJson,headerName:"参数:");
                 argsElement.AddToClassList("tool-args");
                 contentContainer.Add(argsElement);
             }
@@ -78,7 +87,7 @@ namespace UnityAIHelper.Editor.UI
                 try
                 {
                     var resultJson = JToken.Parse(result.content);
-                    var resultElement = new JsonObjectUIElement(resultJson);
+                    var resultElement = new JsonObjectUIElement(resultJson,headerName:"结果:");
                     resultElement.AddToClassList("tool-result");
                     contentContainer.Add(resultElement);
                 }
@@ -107,12 +116,24 @@ namespace UnityAIHelper.Editor.UI
                 contentContainer.style.display = DisplayStyle.None;
                 RemoveFromClassList("expanded");
                 AddToClassList("collapsed");
+                // Update icon state
+                var arrow = this.Q<Label>(className: "tool-call-arrow");
+                if (arrow != null)
+                {
+                    arrow.text = "▶";
+                }
             }
             else
             {
                 contentContainer.style.display = DisplayStyle.Flex;
                 RemoveFromClassList("collapsed");
                 AddToClassList("expanded");
+                // Update icon state
+                var arrow = this.Q<Label>(className: "tool-call-arrow");
+                if (arrow != null)
+                {
+                    arrow.text = "▼";
+                }
             }
         }
     }

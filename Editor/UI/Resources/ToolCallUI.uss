@@ -7,7 +7,7 @@
 
 .tool-call-header {
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-bottom: 4px;
     cursor: pointer;

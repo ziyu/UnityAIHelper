@@ -19,13 +19,15 @@ namespace UnityAIHelper.Editor.UI
         private Label previewLabel;
         private Button copyButton;
         private bool isCopying;
+        private string headerName;
 
         private static StyleSheet JsonStyleSheet;
         
-        public JsonObjectUIElement(JToken token, int depth = 0)
+        public JsonObjectUIElement(JToken token, int depth = 0,string headerName="")
         {
             jsonToken = token;
             contentContainer = new VisualElement();
+            this.headerName = headerName;
             toggleLabel = new Label("▶");
             
             // 根据内容决定是否默认收起
@@ -84,7 +86,6 @@ namespace UnityAIHelper.Editor.UI
             // 只有需要展开/收起的节点才显示箭头
             if (shouldCreateChildren)
             {
-                toggleLabel.text = collapsed ? "▶" : "▼";
                 toggleLabel.AddToClassList("json-toggle");
                 header.Add(toggleLabel);
             }
@@ -280,10 +281,11 @@ namespace UnityAIHelper.Editor.UI
         
         private void UpdateCollapseState()
         {
+            string headerText;
             if (collapsed)
             {
                 contentContainer.style.display = DisplayStyle.None;
-                toggleLabel.text = "▶";
+                headerText = $"▶ <color=#AAAAAA>{headerName}</color>";
                 if (previewLabel != null)
                 {
                     previewLabel.style.display = DisplayStyle.Flex;
@@ -292,12 +294,14 @@ namespace UnityAIHelper.Editor.UI
             else
             {
                 contentContainer.style.display = DisplayStyle.Flex;
-                toggleLabel.text = "▼";
+                headerText = $"▼ <color=#AAAAAA>{headerName}</color>";
                 if (previewLabel != null)
                 {
                     previewLabel.style.display = DisplayStyle.None;
                 }
             }
+            toggleLabel.enableRichText = true;
+            toggleLabel.text = headerText;
         }
 
         private void CreateContent(JToken token, int depth)
