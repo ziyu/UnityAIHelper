@@ -61,7 +61,7 @@ namespace UnityAIHelper.Editor
             var json = JsonConverter.SerializeObject(_instance);
             File.WriteAllText(SettingsPath, json);
             OnSettingsUpdateEvent?.Invoke();
-            ToOpenAIConfig(_instance,_openAIConfig);
+            GetOpenAIConfig();
         }
 
         public static void Delete()
@@ -74,10 +74,10 @@ namespace UnityAIHelper.Editor
         }
         
         
-        public OpenAIConfig GetOpenAIConfig()
+        public static OpenAIConfig GetOpenAIConfig()
         {
             _openAIConfig ??= ScriptableObject.CreateInstance<OpenAIConfig>();
-            ToOpenAIConfig(this,_openAIConfig);
+            ToOpenAIConfig(_instance,_openAIConfig);
             return _openAIConfig;
         }
 

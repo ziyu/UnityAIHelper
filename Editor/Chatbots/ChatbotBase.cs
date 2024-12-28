@@ -49,7 +49,7 @@ namespace UnityAIHelper.Editor
             }
 
             // 2. 获取OpenAI配置
-            var openAIConfig = AIHelperSettings.Instance.GetOpenAIConfig();
+            var openAIConfig = AIHelperSettings.GetOpenAIConfig();
 
             // 3. 创建OpenAI服务
             var openAIService = new OpenAIService(openAIConfig);
