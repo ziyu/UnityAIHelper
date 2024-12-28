@@ -47,12 +47,13 @@ namespace UnityAIHelper.Editor
             // If no chatbots exist, create from defaults
             if (chatbots.Count == 0)
             {
-                var unityHelper = DefaultChatbots.UnityHelper;
+                var unityHelper = DefaultChatbots.DefaultHelper;
                 chatbots[unityHelper.Id] = unityHelper;
                 storage.SaveChatbot(unityHelper);
             }
 
-            currentChatbotId = chatbots.Keys.First();
+            // Load current chatbot or use first one as default
+            currentChatbotId = storage.LoadCurrentChatbot() ?? chatbots.Keys.First();
         }
 
         public IChatbot CreateCustomChatbot(string id, string name, string description, string systemPrompt)
@@ -92,11 +93,14 @@ namespace UnityAIHelper.Editor
             if (currentChatbotId == id) return;
 
             currentChatbotId = id;
+            storage.SaveCurrentChatbot(id);
             OnChatbotChanged?.Invoke();
         }
 
         public void RemoveChatbot(string id)
         {
+            if(id==DefaultChatbots.DefaultHelper.Id)
+                return;
             if (!chatbots.ContainsKey(id))
                 throw new ArgumentException($"Chatbot with ID '{id}' does not exist");
 
@@ -104,8 +108,7 @@ namespace UnityAIHelper.Editor
             storage.DeleteChatbot(id);
             if (currentChatbotId == id)
             {
-                currentChatbotId = chatbots.Keys.First();
-                OnChatbotChanged?.Invoke();
+                SwitchChatbot(chatbots.Keys.First());
             }
             OnChatbotListChanged?.Invoke();
         }

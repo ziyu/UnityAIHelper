@@ -9,6 +9,7 @@ namespace UnityAIHelper.Editor
     {
         private const string BASE_DIR = "Library/AIHelper/Chatbots";
         private const string FILE_EXTENSION = ".chatbot";
+        private const string CURRENT_CHATBOT_FILE = "current_chatbot";
         private static readonly object fileLock = new object();
 
         private readonly string storageDir;
@@ -29,6 +30,11 @@ namespace UnityAIHelper.Editor
         private string GetChatbotPath(string chatbotId)
         {
             return Path.Combine(storageDir, $"{chatbotId}{FILE_EXTENSION}");
+        }
+
+        private string GetCurrentChatbotPath()
+        {
+            return Path.Combine(storageDir, CURRENT_CHATBOT_FILE);
         }
 
         private bool IsChatbotListCacheValid()
@@ -164,6 +170,44 @@ namespace UnityAIHelper.Editor
                 description:data.Description,
                 systemPrompt: data.SystemPrompt
             );
+        }
+
+        public void SaveCurrentChatbot(string chatbotId)
+        {
+            try
+            {
+                lock (fileLock)
+                {
+                    File.WriteAllText(GetCurrentChatbotPath(), chatbotId);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"保存当前Chatbot失败: {e.Message}");
+                throw;
+            }
+        }
+
+        public string LoadCurrentChatbot()
+        {
+            try
+            {
+                var path = GetCurrentChatbotPath();
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                lock (fileLock)
+                {
+                    return File.ReadAllText(path);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"加载当前Chatbot失败: {e.Message}");
+                throw;
+            }
         }
     }
 }

@@ -4,7 +4,7 @@ namespace UnityAIHelper.Editor
 {
     public static class DefaultChatbots
     {
-        public static readonly IChatbot UnityHelper = new CustomChatbot
+        public static readonly IChatbot DefaultHelper = new CustomChatbot
         (
             id: "unity_helper",
             name: "Unity Helper",

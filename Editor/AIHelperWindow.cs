@@ -88,6 +88,7 @@ namespace UnityAIHelper.Editor
             newChatbotUI.OnCreate += CreateNewChatbot;
             chatbotSettingsUI.OnSave += HideModal;
             chatbotSettingsUI.OnCancel += HideModal;
+            chatbotSettingsUI.OnDelete += HideModal;
             settingsUI.OnSave += HideModal;
             settingsUI.OnCancel += HideModal;
             // 绑定消息操作事件

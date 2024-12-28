@@ -15,9 +15,11 @@ namespace UnityAIHelper.Editor.UI
         private ResizableTextArea systemPromptField;
         private Button saveButton;
         private Button cancelButton;
+        private Button deleteButton;
 
         public event Action OnSave;
         public event Action OnCancel;
+        public event Action OnDelete;
 
         private IChatbot currentBot;
 
@@ -43,9 +45,34 @@ namespace UnityAIHelper.Editor.UI
             systemPromptField = root.Q<ResizableTextArea>("system-prompt-field");
             saveButton = root.Q<Button>("save-button");
             cancelButton = root.Q<Button>("cancel-button");
+            deleteButton = root.Q<Button>("delete-button");
 
-           // 绑定事件
-           saveButton.clicked += () =>
+            // 绑定事件
+            deleteButton.clicked += () =>
+            {
+                if (currentBot == null) return;
+
+                if (currentBot.Id==DefaultChatbots.DefaultHelper.Id)
+                {
+                    EditorUtility.DisplayDialog(
+                        "删除Chatbot",
+                        $"无法删除默认助手",
+                        "确认");
+                    return;
+                }
+
+                if (EditorUtility.DisplayDialog(
+                        "删除Chatbot",
+                        $"确定要删除 {currentBot.Name} 吗？",
+                        "删除",
+                        "取消"))
+                {
+                    ChatbotManager.Instance.RemoveChatbot(currentBot.Id);
+                    OnDelete?.Invoke();
+                }
+            };
+
+            saveButton.clicked += () =>
            {
                SaveSettings();
                OnSave?.Invoke();
