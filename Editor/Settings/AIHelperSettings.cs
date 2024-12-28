@@ -77,7 +77,7 @@ namespace UnityAIHelper.Editor
         public static OpenAIConfig GetOpenAIConfig()
         {
             _openAIConfig ??= ScriptableObject.CreateInstance<OpenAIConfig>();
-            ToOpenAIConfig(_instance,_openAIConfig);
+            ToOpenAIConfig(Instance,_openAIConfig);
             return _openAIConfig;
         }
 
