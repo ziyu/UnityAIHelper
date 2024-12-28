@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEditor;
-using UnityLLMAPI.Config;
 using UnityLLMAPI.Models;
-using UnityLLMAPI.Services;
 
 namespace UnityAIHelper.Editor
 {
@@ -18,6 +15,7 @@ namespace UnityAIHelper.Editor
 
         private Dictionary<string, IChatbot> chatbots = new Dictionary<string, IChatbot>();
         private string currentChatbotId;
+        private ChatbotStorage storage;
 
         public event Action OnChatbotChanged;
         public event Action OnChatbotListChanged;
@@ -32,12 +30,29 @@ namespace UnityAIHelper.Editor
 
         public void Initialize()
         {
-            if (chatbots.Count > 0) return;
+            if (storage!=null) return;
 
-            // 创建默认的Unity助手chatbot，启用streaming
-            var unityHelper = new UnityHelperChatbot(useStreaming: true);
-            chatbots.Add(unityHelper.Id, unityHelper);
-            currentChatbotId = unityHelper.Id;
+            storage = new();
+            // Load existing chatbots from storage
+            var storedChatbots = storage.GetAllChatbotIds();
+            foreach (var id in storedChatbots)
+            {
+                var chatbot = storage.LoadChatbot(id);
+                if (chatbot != null)
+                {
+                    chatbots[id] = chatbot;
+                }
+            }
+
+            // If no chatbots exist, create from defaults
+            if (chatbots.Count == 0)
+            {
+                var unityHelper = DefaultChatbots.UnityHelper;
+                chatbots[unityHelper.Id] = unityHelper;
+                storage.SaveChatbot(unityHelper);
+            }
+
+            currentChatbotId = chatbots.Keys.First();
         }
 
         public IChatbot CreateCustomChatbot(string id, string name, string description, string systemPrompt)
@@ -50,18 +65,20 @@ namespace UnityAIHelper.Editor
 
             var chatbot = new CustomChatbot(id, name, description, systemPrompt, useStreaming: true);
             chatbots.Add(id, chatbot);
+            storage.SaveChatbot(chatbot);
             OnChatbotListChanged?.Invoke();
             return chatbot;
         }
 
         public void UpdateCustomChatbot(string id, string name, string description, string systemPrompt)
         {
-            if (!chatbots.ContainsKey(id))
+            if (!chatbots.TryGetValue(id, out var chatbot))
                 throw new ArgumentException($"Chatbot with ID '{id}' does not exist");
 
-            if (chatbots[id] is CustomChatbot customBot)
+            if (chatbot is CustomChatbot customBot)
             {
                 customBot.UpdateSettings(name, description, systemPrompt);
+                storage.SaveChatbot(customBot);
             }
             else
             {
@@ -80,13 +97,11 @@ namespace UnityAIHelper.Editor
 
         public void RemoveChatbot(string id)
         {
-            if (id == "unity_helper")
-                throw new ArgumentException("Cannot remove the default Unity Helper chatbot");
-
             if (!chatbots.ContainsKey(id))
                 throw new ArgumentException($"Chatbot with ID '{id}' does not exist");
 
             chatbots.Remove(id);
+            storage.DeleteChatbot(id);
             if (currentChatbotId == id)
             {
                 currentChatbotId = chatbots.Keys.First();
@@ -114,33 +129,8 @@ namespace UnityAIHelper.Editor
     // 自定义Chatbot实现
     public class CustomChatbot : ChatbotBase
     {
-        private readonly string id;
-        private string name;
-        private string description;
-        private string systemPrompt;
-
-        public override string Id => id;
-        public override string Name => name;
-        public override string Description => description;
-        public string SystemPrompt => systemPrompt;
-
-        public CustomChatbot(string id, string name, string description, string systemPrompt, bool useStreaming = false) 
-            : base(systemPrompt, useStreaming: useStreaming, useSessionStorage: true)
+        public CustomChatbot(string id, string name, string description, string systemPrompt, bool useTools = true, bool useStreaming = true, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true) : base(id, name, description, systemPrompt, useTools, useStreaming, streamingCallback, useSessionStorage)
         {
-            this.id = id;
-            this.name = name;
-            this.description = description;
-            this.systemPrompt = systemPrompt;
-        }
-
-        public void UpdateSettings(string name, string description, string systemPrompt)
-        {
-            this.name = name;
-            this.description = description;
-            this.systemPrompt = systemPrompt;
-            
-            // 清空历史记录并重新初始化会话
-            ClearHistory();
         }
     }
 }

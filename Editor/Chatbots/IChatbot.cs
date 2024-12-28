@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
+using UnityAIHelper.Editor.Tools;
 using UnityLLMAPI.Models;
 
 namespace UnityAIHelper.Editor
@@ -13,7 +14,9 @@ namespace UnityAIHelper.Editor
         string Description { get; }
         string SystemPrompt { get; }
         ChatSession Session { get; }
-        
+
+        ToolRegistry ToolRegistry { get; }
+
         event Action<ChatMessage> OnStreamingMessage;
         event Func<ChatMessageInfo,ToolCall, Task<bool>> OnShouldExecuteToolEvent;
         event Action<ChatStateChangedEventArgs> OnChatStateChangedEvent;

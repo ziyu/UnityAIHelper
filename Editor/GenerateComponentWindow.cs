@@ -29,7 +29,7 @@ namespace UnityAIHelper.Editor
         private GameObject targetGameObject;
         private Component targetComponent;
         private Vector2 inputScrollPosition;
-        private ComponentGeneratorChatbot componentGenerator;
+        private IChatbot componentGenerator;
         private string generatingContent = "";
         private string currentPhase = ""; 
         private string existingScriptContent = "";
@@ -62,7 +62,9 @@ namespace UnityAIHelper.Editor
         public void SetTargetGameObject(GameObject gameObject)
         {
             targetGameObject = gameObject;
-            componentGenerator = new ComponentGeneratorChatbot(OnStreamingResponse);
+            componentGenerator = DefaultChatbots.ComponentGenerator;
+            componentGenerator.OnStreamingMessage -= OnStreamingResponse;
+            componentGenerator.OnStreamingMessage += OnStreamingResponse;
             codeDiffViewer = new CodeDiffViewer(this);
             existingScriptContent = "";
             newScriptContent = "";

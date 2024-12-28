@@ -19,22 +19,27 @@ namespace UnityAIHelper.Editor
         protected readonly ToolRegistry toolRegistry;
         protected readonly ToolExecutor toolExecutor;
 
-        protected string name;
-        protected string description;
-        protected string systemPrompt;
+        private readonly string id;
+        private string name;
+        private string description;
+        private string systemPrompt;
 
-        public abstract string Id { get; }
+        public virtual string Id => id;
         public virtual string Name => name;
         public virtual string Description => description;
         public virtual string SystemPrompt => systemPrompt;
         public ChatSession Session => chatbotService.Session;
-        
+        public ToolRegistry ToolRegistry => toolRegistry;
+
         public event Action<ChatMessage> OnStreamingMessage;
         public event Func<ChatMessageInfo,ToolCall, Task<bool>> OnShouldExecuteToolEvent;
         public event Action<ChatStateChangedEventArgs> OnChatStateChangedEvent;
 
-        protected ChatbotBase(string systemPrompt, bool useTools = true, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
+        protected ChatbotBase(string id, string name, string description,string systemPrompt, bool useTools = true, bool useStreaming = true, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
         {
+            this.id = id;
+            this.name = name;
+            this.description = description;
             this.systemPrompt = systemPrompt;
 
             // 1. 创建会话存储（如果需要）
@@ -44,11 +49,7 @@ namespace UnityAIHelper.Editor
             }
 
             // 2. 获取OpenAI配置
-            var openAIConfig = OpenAIConfig.Instance;
-            if (openAIConfig == null)
-            {
-                throw new Exception("请在Resources文件夹中创建OpenAIConfig配置文件");
-            }
+            var openAIConfig = AIHelperSettings.Instance.GetOpenAIConfig();
 
             // 3. 创建OpenAI服务
             var openAIService = new OpenAIService(openAIConfig);
@@ -68,7 +69,6 @@ namespace UnityAIHelper.Editor
             {
                 systemPrompt = systemPrompt,
                 useStreaming = useStreaming,
-                defaultModel = openAIConfig.defaultModel,
                 shouldExecuteTool = OnShouldExecuteTool,
                 toolSet = toolRegistry?.LLMToolSet // 使用工具注册表中的LLM工具集
             };
