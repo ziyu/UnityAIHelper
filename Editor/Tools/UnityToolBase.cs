@@ -16,6 +16,7 @@ namespace UnityAIHelper.Editor.Tools
         public abstract string Name { get; }
         public abstract string Description { get; }
         public abstract ToolType Type { get; }
+        public abstract PermissionType RequiredPermissions { get; }
 
         public IReadOnlyList<ToolParameter> Parameters => parameters;
         public IReadOnlyList<string> Dependencies => dependencies;

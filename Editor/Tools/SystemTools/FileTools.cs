@@ -15,6 +15,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
     public abstract class FileToolBase : UnityToolBase
     {
         public override ToolType Type => ToolType.System;
+        public override PermissionType RequiredPermissions => PermissionType.None;
 
         protected string NormalizePath(string path)
         {
@@ -41,6 +42,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
     {
         public override string Name => "ReadFile";
         public override string Description => "读取文件内容";
+        public override PermissionType RequiredPermissions => PermissionType.Read;
 
         protected override void InitializeParameters()
         {
@@ -67,6 +69,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
     {
         public override string Name => "DeleteFile";
         public override string Description => "删除文件";
+        public override PermissionType RequiredPermissions => PermissionType.Delete;
 
         protected override void InitializeParameters()
         {
@@ -111,6 +114,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
     {
         public override string Name => "CopyFile";
         public override string Description => "复制文件";
+        public override PermissionType RequiredPermissions => PermissionType.Read | PermissionType.Write;
 
         protected override void InitializeParameters()
         {
@@ -155,6 +159,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
     {
         public override string Name => "SearchFiles";
         public override string Description => "搜索文件";
+        public override PermissionType RequiredPermissions => PermissionType.Read;
 
         protected override void InitializeParameters()
         {
@@ -241,6 +246,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
 
         public override string Name => "WatchFile";
         public override string Description => "监视文件变化";
+        public override PermissionType RequiredPermissions => PermissionType.Read;
 
         protected override void InitializeParameters()
         {

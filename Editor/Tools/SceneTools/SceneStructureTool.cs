@@ -11,6 +11,7 @@ namespace UnityAIHelper.Editor.Tools.SceneTools
         public override string Name => "SceneStructure";
         public override string Description => "Reads the current scene structure with depth support";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Read;
 
         protected override void InitializeParameters()
         {

@@ -8,7 +8,10 @@ namespace UnityAIHelper.Editor.UI
         private readonly AIHelperWindow window;
         private VisualElement root;
         private VisualElement statusArea;
-        private bool lastIsProcessing;
+
+        private VisualElement buttonContainer;
+        private Button continueButton;
+        private Button cancelButton;
         
         public StatusAreaUI(AIHelperWindow window, VisualElement root)
         {
@@ -20,13 +23,10 @@ namespace UnityAIHelper.Editor.UI
         void Initialize()
         {
             statusArea = root;
-            lastIsProcessing = !window.isProcessing;
         }
 
         public override void OnUpdateUI()
         {
-            if(lastIsProcessing==window.isProcessing)return;
-            lastIsProcessing = window.isProcessing;
             if (window.isProcessing)
             {
                 statusArea.style.display = DisplayStyle.Flex;
@@ -49,22 +49,36 @@ namespace UnityAIHelper.Editor.UI
                 statusArea.Add(label);
 
                 // 按钮容器
-                var buttonContainer = new VisualElement();
-                buttonContainer.style.flexDirection = FlexDirection.Row;
-                buttonContainer.style.justifyContent = Justify.FlexEnd;
-                statusArea.Add(buttonContainer);
+                if (buttonContainer == null)
+                {
+                    buttonContainer = new VisualElement();
+                    buttonContainer.style.flexDirection = FlexDirection.Row;
+                    buttonContainer.style.justifyContent = Justify.FlexEnd;
+                }
+                if(!statusArea.Contains(buttonContainer))
+                    statusArea.Add(buttonContainer);
 
                 // 继续按钮
                 if (currentBot.HasPendingMessage)
                 {
-                    var continueButton = new Button(window.ContinueMessage) { text = "继续之前对话" };
-                    continueButton.style.marginRight = 8;
-                    buttonContainer.Add(continueButton);
+                    if (continueButton == null)
+                    {
+                        continueButton = new Button(window.ContinueMessage) { text = "继续之前对话" };
+                        continueButton.style.marginRight = 8;
+                    }
+                    if(!buttonContainer.Contains(continueButton))
+                        buttonContainer.Add(continueButton);
+                }
+                else
+                {
+                    if(continueButton!=null&&buttonContainer.Contains(continueButton))
+                        buttonContainer.Remove(continueButton);
                 }
 
                 // 取消按钮
-                var cancelButton = new Button(window.CancelCurrentRequest) { text = "取消" };
-                buttonContainer.Add(cancelButton);
+                cancelButton ??= new Button(window.CancelCurrentRequest) { text = "取消" };
+                if(!buttonContainer.Contains(cancelButton))
+                    buttonContainer.Add(cancelButton);
             }
             else
             {

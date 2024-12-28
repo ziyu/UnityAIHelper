@@ -11,6 +11,7 @@ namespace UnityAIHelper.Editor.Tools.AssetTools
         public override string Name => "ImportAsset";
         public override string Description => "Imports an existing asset into Unity";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Write;
 
         protected override void InitializeParameters()
         {

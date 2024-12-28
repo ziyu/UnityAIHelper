@@ -19,6 +19,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
         public override string Name => "ExecuteCode";
         public override string Description => "临时代码执行（ExecuteCode）：\n用于直接执行一段C#代码，无需创建工具，适合一次性的操作。\n代码会放到一个方法中执行，所以必须是一段可以直接执行的代码。\n不能定义类！不能定义类！不能定义类！\n注意代码依赖关系，需要创建的脚本要先创建后再调用其函数。\n最终返回一个字符串作为执行结果。\n参数说明：\n- code: 要执行的C#代码\n\n示例：执行临时代码\n{{\n    \"code\": \"\n        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);\n        cube.transform.position = new Vector3(0, 2, 0);\n        return \"cube created\";\n    \"\n}}";
         public override ToolType Type => ToolType.System;
+        public override PermissionType RequiredPermissions => PermissionType.Read|PermissionType.Write|PermissionType.Delete;
 
         private const string TempClassName = "TempClass";
         private const string TempFuncName = "Invoke";

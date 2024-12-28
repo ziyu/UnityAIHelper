@@ -4,6 +4,7 @@ using UnityLLMAPI.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -117,11 +118,16 @@ namespace UnityAIHelper.Editor.UI
 
         public override void OnUpdateUI()
         {
+            if (window.IsDirty(AIHelperDirtyFlag.Chatbot))
+            {
+                _messageElements?.Clear();
+            }
+
             if (window.IsDirty(AIHelperDirtyFlag.MessageList))
             {
                 UpdateMessageList();
             }
-            else if (window.IsDirty(AIHelperDirtyFlag.StreamingMessage)||window.IsDirty(AIHelperDirtyFlag.SendingMessage))
+            if (window.IsDirty(AIHelperDirtyFlag.StreamingMessage)||window.IsDirty(AIHelperDirtyFlag.SendingMessage))
             {
                 // 添加正在流式传输的消息
                 if (window.isStreaming &&  window.currentStreamingMessage != null)
@@ -176,6 +182,13 @@ namespace UnityAIHelper.Editor.UI
                 throw new Exception("Must Update Message List before tool call.");
             }
             return element.RequestToolConfirmation(toolCall);
+        }
+
+        public void CancelRequestToolConfirmation(ChatMessageInfo messageInfo, ToolCall toolCall)
+        {
+            Debug.Log("CancelRequestToolConfirmation CancelRequestToolConfirmation CancelRequestToolConfirmation");
+            var element = GetElement(messageInfo);
+            element?.CancelToolConfirmation(toolCall);
         }
     }
 }

@@ -12,6 +12,7 @@ namespace UnityAIHelper.Editor.Tools.SceneTools
         public override string Name => "SaveScene";
         public override string Description => "Saves the current Unity scene";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Write;
 
         protected override void InitializeParameters()
         {

@@ -12,6 +12,7 @@ namespace UnityAIHelper.Editor.Tools.SceneTools
         public override string Name => "CreateScene";
         public override string Description => "Creates a new Unity scene";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Read | PermissionType.Write;
 
         protected override void InitializeParameters()
         {

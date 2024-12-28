@@ -11,6 +11,7 @@ namespace UnityAIHelper.Editor.Tools.AssetTools
         public override string Name => "MoveAsset";
         public override string Description => "Moves an asset to a new location";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Read | PermissionType.Write;
 
         protected override void InitializeParameters()
         {

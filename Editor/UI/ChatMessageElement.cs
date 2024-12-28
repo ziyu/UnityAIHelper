@@ -4,6 +4,7 @@ using UnityLLMAPI.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityLLMAPI.Utils.Json;
 
@@ -173,11 +174,15 @@ namespace UnityAIHelper.Editor.UI
 
         public Task<bool> RequestToolConfirmation(ToolCall toolCall)
         {
-            Debug.Log("RequestConfirmation:"+JsonConverter.SerializeObject(messageInfo.message));
-            Debug.Log("RequestConfirmation:"+JsonConverter.SerializeObject(toolCall));
             var toolCallElement = GetOrAddToolCallElement(toolCall);
 
             return toolCallElement.RequestConfirmation();
+        }
+
+        public void CancelToolConfirmation(ToolCall toolCall)
+        {
+            var toolCallElement = GetOrAddToolCallElement(toolCall);
+            toolCallElement?.RemoveConfirmationUI();
         }
     }
 }

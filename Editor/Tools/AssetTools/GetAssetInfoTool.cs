@@ -11,6 +11,7 @@ namespace UnityAIHelper.Editor.Tools.AssetTools
         public override string Name => "GetAssetInfo";
         public override string Description => "Gets information about an asset";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Read;
 
         protected override void InitializeParameters()
         {

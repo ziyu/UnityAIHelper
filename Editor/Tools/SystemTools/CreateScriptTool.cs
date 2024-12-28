@@ -15,6 +15,7 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
         public override string Name => "CreateScript";
         public override string Description => "Creates a new C# script at target path";
         public override ToolType Type => ToolType.System;
+        public override PermissionType RequiredPermissions => PermissionType.Write;
 
         protected override void InitializeParameters()
         {

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityAIHelper.Editor.Tools;
 using UnityLLMAPI.Models;
 using UnityAIHelper.Editor.UI;
 using UnityEngine.UIElements;
@@ -18,7 +19,8 @@ namespace UnityAIHelper.Editor
         private ToolbarUI toolbarUI;
         private StatusAreaUI statusAreaUI;
         private NewChatbotUI newChatbotUI;
-        private ChatbotSettingsUI settingsUI;
+        private ChatbotSettingsUI chatbotSettingsUI;
+        private SettingsUI settingsUI;
 
         // UI Elements
         private VisualElement root;
@@ -69,18 +71,19 @@ namespace UnityAIHelper.Editor
             toolbarUI = new ToolbarUI(this, root.Q<VisualElement>("toolbar"));
             statusAreaUI = new StatusAreaUI(this,  root.Q<VisualElement>("status-area"));
             newChatbotUI = new NewChatbotUI(this);
-            settingsUI = new ChatbotSettingsUI(this);
+            chatbotSettingsUI = new ChatbotSettingsUI(this);
+            settingsUI = new SettingsUI(this);
       
             _subUIComponents.Clear();
             _subUIComponents.Add(chatAreaUI);
             _subUIComponents.Add(inputAreaUI);
             _subUIComponents.Add(toolbarUI);
             _subUIComponents.Add(statusAreaUI);
-
             // 绑定事件
             inputAreaUI.OnSendMessage += SendMessage;
             toolbarUI.OnCreateNewChatbot += ShowNewChat;
-            toolbarUI.OnOpenSettings += ShowSettings;
+            toolbarUI.OnOpenSettings += OnOpenSettings;
+            toolbarUI.OnOpenChatbotSettings += OnOpenChatbotSettings;
             newChatbotUI.OnCancel += HideModal;
             newChatbotUI.OnCreate += CreateNewChatbot;
             settingsUI.OnSave += HideModal;
@@ -118,20 +121,6 @@ namespace UnityAIHelper.Editor
 
         private void OnEnable()
         {
-            // 检查UnityLLMAPI配置
-            var config = UnityLLMAPI.Config.OpenAIConfig.Instance;
-            if (config == null)
-            {
-                config = ScriptableObject.CreateInstance<UnityLLMAPI.Config.OpenAIConfig>();
-                if (!AssetDatabase.IsValidFolder("Assets/Resources"))
-                {
-                    AssetDatabase.CreateFolder("Assets", "Resources");
-                }
-                AssetDatabase.CreateAsset(config, "Assets/Resources/OpenAIConfig.asset");
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-                Debug.Log("已创建默认OpenAI配置文件，请在Project窗口中设置相关参数");
-            }
             
             // 订阅ChatbotManager的事件
             ChatbotManager.Instance.OnChatbotChanged += OnChatbotChanged;
@@ -206,7 +195,7 @@ namespace UnityAIHelper.Editor
                 ChatbotManager.Instance.SwitchChatbot(id);
                 OnChatbotChanged();
                 HideModal();
-                MarkDirty(AIHelperDirtyFlag.ChatbotList);
+                MarkDirty(AIHelperDirtyFlag.ChatbotList|AIHelperDirtyFlag.MessageList);
             }
             catch (Exception ex)
             {
@@ -312,7 +301,7 @@ namespace UnityAIHelper.Editor
             UnRegisterChatbotEvents();
             currentChatbot = ChatbotManager.Instance.GetCurrentChatbot();
             RegisterChatbotEvents();
-            MarkDirty(AIHelperDirtyFlag.Chatbot);
+            MarkDirty(AIHelperDirtyFlag.Chatbot|AIHelperDirtyFlag.MessageList);
         }
         
         void RegisterChatbotEvents()
@@ -340,14 +329,23 @@ namespace UnityAIHelper.Editor
 
         private void OnChatbotListChanged()
         {
-            MarkDirty(AIHelperDirtyFlag.ChatbotList);
+            MarkDirty(AIHelperDirtyFlag.ChatbotList|AIHelperDirtyFlag.MessageList);
         }
 
-        private void ShowSettings()
+        private void OnOpenChatbotSettings()
+        {
+            if (currentChatbot == null) return;
+            modalContainer.Clear();
+            modalContainer.Add(chatbotSettingsUI.GetRoot());
+            chatbotSettingsUI.Show(currentChatbot);
+            ShowModal();
+        }
+
+        private void OnOpenSettings()
         {
             modalContainer.Clear();
             modalContainer.Add(settingsUI.GetRoot());
-            settingsUI.Show(currentChatbot);
+            settingsUI.Show();
             ShowModal();
         }
 
@@ -410,8 +408,50 @@ namespace UnityAIHelper.Editor
 
         async Task<bool> OnShouldExecuteTool(ChatMessageInfo messageInfo, ToolCall toolCall)
         {
-            if (!isProcessing) return false;
-            return await chatAreaUI.OnShouldExecuteTool(messageInfo,toolCall);
+            // Return false if processing is cancelled or not active
+            if (!isProcessing || cancellationTokenSource == null || cancellationTokenSource.Token.IsCancellationRequested)
+                return false;
+
+            var settings = AIHelperSettings.Instance;
+            var tool = currentChatbot.ToolRegistry.GetTool(toolCall.function.name);
+            var permissions = tool.RequiredPermissions;
+
+            // Check if all required permissions are auto-approved
+            bool needsApproval = false;
+            
+            if ((permissions & PermissionType.Read) != 0 && !settings.AlwaysApproveReadOnlyOperations)
+                needsApproval = true;
+            
+            if ((permissions & PermissionType.Write) != 0 && !settings.AlwaysApproveWriteOperations)
+                needsApproval = true;
+            
+            if ((permissions & PermissionType.Delete) != 0 && !settings.AlwaysApproveDeleteOperations)
+                needsApproval = true;
+
+            try
+            {
+                // If any permission needs approval, ask user
+                if (needsApproval)
+                {
+                    var approvalTask = chatAreaUI.OnShouldExecuteTool(messageInfo, toolCall);
+                    var cancellationTask = Task.Delay(-1, cancellationTokenSource.Token);
+                    
+                    var completedTask = await Task.WhenAny(approvalTask, cancellationTask);
+                    if (completedTask == cancellationTask)
+                    {
+                        chatAreaUI.CancelRequestToolConfirmation(messageInfo, toolCall);
+                        return false;
+                    }
+
+                    return await approvalTask;
+                }
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                chatAreaUI.CancelRequestToolConfirmation(messageInfo, toolCall);
+                return false;
+            }
         }
 
         void OnChatStageChange(ChatStateChangedEventArgs e)

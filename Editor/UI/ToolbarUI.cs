@@ -21,6 +21,7 @@ namespace UnityAIHelper.Editor.UI
         private Button newSessionButton;
         private Button deleteSessionButton;
         private Button settingsButton;
+        private Button chatbotSettingsButton;
         private Button renameSessionButton;
         private string defaultSessionName = "新对话";
         private List<string> currentSessionIds = new List<string>();
@@ -28,6 +29,7 @@ namespace UnityAIHelper.Editor.UI
         // 事件
         public event System.Action OnCreateNewChatbot;
         public event System.Action OnDeleteSession;
+        public event System.Action OnOpenChatbotSettings;
         public event System.Action OnOpenSettings;
 
         public ToolbarUI(AIHelperWindow window, VisualElement root)
@@ -52,6 +54,7 @@ namespace UnityAIHelper.Editor.UI
             newSessionButton = root.Q<Button>("new-session-button");
             deleteSessionButton = root.Q<Button>("clear-history-button");
             settingsButton = root.Q<Button>("settings-button");
+            chatbotSettingsButton = root.Q<Button>("chatbot-settings-button");
             renameSessionButton = root.Q<Button>("rename-session-button");
 
             // 初始化下拉菜单
@@ -77,6 +80,7 @@ namespace UnityAIHelper.Editor.UI
                 }
             };
             settingsButton.clicked += () => OnOpenSettings?.Invoke();
+            chatbotSettingsButton.clicked += () => OnOpenChatbotSettings?.Invoke();
             newSessionButton.clicked += CreateNewSession;
             renameSessionButton.clicked += RenameCurrentSession;
         }

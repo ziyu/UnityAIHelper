@@ -11,6 +11,7 @@ namespace UnityAIHelper.Editor.Tools.AssetTools
         public override string Name => "RenameAsset";
         public override string Description => "Renames an asset";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Write;
 
         protected override void InitializeParameters()
         {

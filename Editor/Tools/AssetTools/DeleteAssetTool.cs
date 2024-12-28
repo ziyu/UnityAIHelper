@@ -11,6 +11,7 @@ namespace UnityAIHelper.Editor.Tools.AssetTools
         public override string Name => "DeleteAsset";
         public override string Description => "Deletes an asset";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Delete;
 
         protected override void InitializeParameters()
         {

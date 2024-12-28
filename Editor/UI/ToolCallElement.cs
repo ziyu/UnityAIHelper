@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -166,7 +167,6 @@ namespace UnityAIHelper.Editor.UI
             confirmatioContainer ??= CreateConfirmationUI();
             if(!contentContainer.Contains(confirmatioContainer))
                 contentContainer.Add(confirmatioContainer);
-
             return confirmationTask.Task;
         }
 
@@ -182,8 +182,9 @@ namespace UnityAIHelper.Editor.UI
             RemoveConfirmationUI();
         }
 
-        private void RemoveConfirmationUI()
+        public void RemoveConfirmationUI()
         {
+            confirmationTask = null;
             confirmatioContainer?.RemoveFromHierarchy();
             confirmatioContainer = null;
         }

@@ -14,6 +14,18 @@ namespace UnityAIHelper.Editor.Tools
     }
 
     /// <summary>
+    /// 权限类型枚举 (Flags)
+    /// </summary>
+    [Flags]
+    public enum PermissionType
+    {
+        None = 0,       // 无权限
+        Read = 1 << 0,  // 读取权限
+        Write = 1 << 1, // 写入权限
+        Delete = 1 << 2 // 删除权限
+    }
+
+    /// <summary>
     /// 工具接口
     /// </summary>
     public interface IUnityTool
@@ -21,6 +33,9 @@ namespace UnityAIHelper.Editor.Tools
         string Name { get; }
         string Description { get; }
         ToolType Type { get; }
+        
+        // 获取工具所需权限
+        PermissionType RequiredPermissions { get; }
         
         // 获取工具参数定义
         IReadOnlyList<ToolParameter> Parameters { get; }

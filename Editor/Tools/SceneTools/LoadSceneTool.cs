@@ -12,6 +12,7 @@ namespace UnityAIHelper.Editor.Tools.SceneTools
         public override string Name => "LoadScene";
         public override string Description => "Loads an existing Unity scene";
         public override ToolType Type => ToolType.Custom;
+        public override PermissionType RequiredPermissions => PermissionType.Read;
 
         protected override void InitializeParameters()
         {
