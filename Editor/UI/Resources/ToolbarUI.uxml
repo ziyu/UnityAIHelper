@@ -1,6 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:aui="UnityAIHelper.Editor.UI" editor-extension-mode="False">
     <ui:VisualElement name="toolbar" picking-mode="position" class="toolbar-root">
         <ui:VisualElement name="left-group" class="toolbar-group">
+            <ui:Button name="chatbot-settings-button" text="⌘" picking-mode="position" class="toolbar-button" />
             <ui:DropdownField name="chatbot-dropdown" picking-mode="position" class="chatbot-dropdown" />
             <ui:Label tabindex="-1" text="当前对话:" parse-escape-sequences="true" display-tooltip-when-elided="true" style="-unity-text-align: upper-center; -unity-font-style: normal;" />
             <aui:IndexedDropdownField name="session-dropdown" picking-mode="position" class="session-dropdown" />

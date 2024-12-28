@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:ue="UnityEditor.UIElements">
+    <ui:VisualElement class="settings-container">
+        <ui:Label text="Settings" class="header" />
+        
+        <ui:Label text="Model Provider Settings" class="section-header" />
+        <ui:VisualElement style="flex-direction: row; align-items: flex-end;">
+            <ui:TextField name="api-key-field" label="API Key" isPasswordField="true" style="flex: 1 0 auto; margin-right: 0;" />
+            <ui:Button name="toggle-key-visibility-button" text="⏿" style="width: 24px; height: 18px; margin-left: 0; margin-bottom: 2px;" />
+        </ui:VisualElement>
+        <ui:TextField name="api-base-url-field" label="API Base URL" />
+        <ui:TextField name="default-model-field" label="Default Model" />
+        <uie:FloatField name="temperature-field" label="Temperature" />
+        <uie:IntegerField name="max-tokens-field" label="Max Tokens" />
+        
+        <ui:Label text="Operation Approvals" class="section-header" />
+        <ui:Toggle name="always-approve-read-toggle" label="Always Approve Read-Only" />
+        <ui:Toggle name="always-approve-write-toggle" label="Always Approve Write" />
+        <ui:Toggle name="always-approve-delete-toggle" label="Always Approve Delete" />
+        
+        <ui:Label text="UI Settings" class="section-header" />
+        <ue:ColorField name="primary-color-field" label="Primary Color" />
+        <ue:ColorField name="secondary-color-field" label="Secondary Color" />
+        
+        <ui:VisualElement class="button-container">
+            <ui:Button name="save-button" text="Save" class="save-button" />
+            <ui:Button name="cancel-button" text="Cancel" class="cancel-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
