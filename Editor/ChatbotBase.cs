@@ -30,6 +30,8 @@ namespace UnityAIHelper.Editor
         public ChatSession Session => chatbotService.Session;
         
         public event Action<ChatMessage> OnStreamingMessage;
+        public event Func<ChatMessageInfo,ToolCall, Task<bool>> OnShouldExecuteToolEvent;
+        public event Action<ChatStateChangedEventArgs> OnChatStateChangedEvent;
 
         protected ChatbotBase(string systemPrompt, bool useTools = true, bool useStreaming = false, Action<ChatMessage> streamingCallback = null, bool useSessionStorage = true)
         {
@@ -67,6 +69,7 @@ namespace UnityAIHelper.Editor
                 systemPrompt = systemPrompt,
                 useStreaming = useStreaming,
                 defaultModel = openAIConfig.defaultModel,
+                shouldExecuteTool = OnShouldExecuteTool,
                 toolSet = toolRegistry?.LLMToolSet // 使用工具注册表中的LLM工具集
             };
 
@@ -114,9 +117,27 @@ namespace UnityAIHelper.Editor
             OnStreamingMessage?.Invoke(chatMessage);
         }
 
+        async Task<bool> OnShouldExecuteTool(ChatMessageInfo messageInfo,ToolCall toolCall)
+        {
+            if (OnShouldExecuteToolEvent != null)
+            {
+                try
+                {
+                    return await OnShouldExecuteToolEvent.Invoke(messageInfo,toolCall);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                    return false;
+                }
+            }
+            return true;
+        }
+
         void OnChatStateChanged(object sender, ChatStateChangedEventArgs e)
         {
             SaveSession();
+            OnChatStateChangedEvent?.Invoke(e);
         }
 
         public virtual async Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default)
@@ -220,8 +241,6 @@ namespace UnityAIHelper.Editor
 
             // 保存当前会话
             SaveSession();
-            
-            Debug.Log("SwitchSession:" + sessionId);
             // 加载新会话
             var session = sessionStorage.LoadSession(sessionId);
             if (session == null)

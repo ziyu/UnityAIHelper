@@ -4,6 +4,7 @@ using UnityLLMAPI.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityLLMAPI.Utils.Json;
 
 namespace UnityAIHelper.Editor.UI
@@ -12,7 +13,7 @@ namespace UnityAIHelper.Editor.UI
     {
         private readonly ChatMessageInfo messageInfo;
         private readonly Action<ChatMessageInfo> onDelete;
-        private readonly List<ChatMessage> toolResults;
+        private List<ChatMessage> toolResults;
         private Label contentLabel;
         private VisualElement toolCallContainer;
         private List<ToolCallElement> toolCallElements;
@@ -122,8 +123,9 @@ namespace UnityAIHelper.Editor.UI
             };
         }
 
-        public void UpdateMessage()
+        public void UpdateMessage(List<ChatMessage> toolResults = null)
         {
+            this.toolResults = toolResults;
             contentLabel.text = this.messageInfo.message.content;
             UpdateToolCalls();
         }
@@ -145,21 +147,37 @@ namespace UnityAIHelper.Editor.UI
                 toolCallContainer.Clear();
                 foreach (var toolCall in messageInfo.message.tool_calls)
                 {
-                    var toolResult = toolResults.FirstOrDefault(r => r.tool_call_id == toolCall.id);
-                    var toolCallElement = toolCallElements.Find(x => x.ToolCallId == toolCall.id);
-                    if (toolCallElement == null)
-                    {
-                        toolCallElement=new ToolCallElement(toolCall, toolResult);
-                        toolCallElements.Add(toolCallElement);
-                    }
-                    else
-                    {
-                        toolCallElement.UpdateToolCall(toolCall, toolResult);
-                    }
-                    toolCallElement.SetCollapse(false);
-                    toolCallContainer.Add(toolCallElement);
+                    var toolResult = toolResults?.FirstOrDefault(r => r.tool_call_id == toolCall.id);
+                    GetOrAddToolCallElement(toolCall, toolResult);
                 }
             }
+        }
+
+        ToolCallElement GetOrAddToolCallElement(ToolCall toolCall,ChatMessage toolResult=null)
+        {
+            var toolCallElement = toolCallElements.Find(x => x.ToolCallId == toolCall.id);
+            if (toolCallElement == null)
+            {
+                toolCallElement=new ToolCallElement(toolCall, toolResult);
+                toolCallElements.Add(toolCallElement);
+            }
+            else
+            {
+                toolCallElement.UpdateToolCall(toolCall, toolResult);
+            }
+            if(!toolCallContainer.Contains(toolCallElement))
+                toolCallContainer.Add(toolCallElement);
+            toolCallElement.SetCollapse(false);
+            return toolCallElement;
+        }
+
+        public Task<bool> RequestToolConfirmation(ToolCall toolCall)
+        {
+            Debug.Log("RequestConfirmation:"+JsonConverter.SerializeObject(messageInfo.message));
+            Debug.Log("RequestConfirmation:"+JsonConverter.SerializeObject(toolCall));
+            var toolCallElement = GetOrAddToolCallElement(toolCall);
+
+            return toolCallElement.RequestConfirmation();
         }
     }
 }

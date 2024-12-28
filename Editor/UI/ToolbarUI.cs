@@ -22,7 +22,7 @@ namespace UnityAIHelper.Editor.UI
         private Button deleteSessionButton;
         private Button settingsButton;
         private Button renameSessionButton;
-        private string defaultSessionName = "新会话";
+        private string defaultSessionName = "新对话";
         private List<string> currentSessionIds = new List<string>();
 
         // 事件

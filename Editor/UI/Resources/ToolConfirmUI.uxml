@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:VisualElement class="tool-confirm-container">
+        <ui:Label text="是否执行工具" class="confirm-title" />
+        <ui:VisualElement class="buttons-container" style="flex-direction: row; align-items: stretch; justify-content: center; align-self: stretch; flex-wrap: nowrap;">
+            <ui:Button text="确认" class="confirm-button" />
+            <ui:Button text="取消" class="cancel-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -8,6 +8,7 @@ namespace UnityAIHelper.Editor.UI
         private readonly AIHelperWindow window;
         private VisualElement root;
         private VisualElement statusArea;
+        private bool lastIsProcessing;
         
         public StatusAreaUI(AIHelperWindow window, VisualElement root)
         {
@@ -19,10 +20,13 @@ namespace UnityAIHelper.Editor.UI
         void Initialize()
         {
             statusArea = root;
+            lastIsProcessing = !window.isProcessing;
         }
 
         public override void OnUpdateUI()
         {
+            if(lastIsProcessing==window.isProcessing)return;
+            lastIsProcessing = window.isProcessing;
             if (window.isProcessing)
             {
                 statusArea.style.display = DisplayStyle.Flex;

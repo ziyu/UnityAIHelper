@@ -142,15 +142,14 @@ namespace UnityAIHelper.Editor
             {
                 isProcessing = true;
             }
-            // 订阅streaming事件
-            currentChatbot.OnStreamingMessage += OnStreamingMessageReceived;
+
+            RegisterChatbotEvents();
         }
 
         private void OnDisable()
         {
-            // 取消订阅streaming事件
-            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
-            currentBot.OnStreamingMessage -= OnStreamingMessageReceived;
+            UnRegisterChatbotEvents();
+            currentChatbot = null;
 
             // 取消订阅ChatbotManager事件
             ChatbotManager.Instance.OnChatbotChanged -= OnChatbotChanged;
@@ -217,10 +216,9 @@ namespace UnityAIHelper.Editor
 
         internal void CancelCurrentRequest()
         {
-            var currentBot = ChatbotManager.Instance.GetCurrentChatbot();
-            if (currentBot.HasPendingMessage)
+            if (currentChatbot.HasPendingMessage)
             {
-                currentBot.ClearPendingState();
+                currentChatbot.ClearPendingState();
                 isProcessing = false;
                 isStreaming = false;
                 currentStreamingMessage = null;
@@ -311,12 +309,33 @@ namespace UnityAIHelper.Editor
 
         private void OnChatbotChanged()
         {
+            UnRegisterChatbotEvents();
+            currentChatbot = ChatbotManager.Instance.GetCurrentChatbot();
+            RegisterChatbotEvents();
+            MarkDirty(AIHelperDirtyFlag.Chatbot);
+        }
+        
+        void RegisterChatbotEvents()
+        {
             if (currentChatbot != null)
             {
                 currentChatbot.OnStreamingMessage -= OnStreamingMessageReceived;
+                currentChatbot.OnShouldExecuteToolEvent -= OnShouldExecuteTool;
+                currentChatbot.OnChatStateChangedEvent -= OnChatStageChange;
+                currentChatbot.OnStreamingMessage += OnStreamingMessageReceived;
+                currentChatbot.OnChatStateChangedEvent += OnChatStageChange;
+                currentChatbot.OnShouldExecuteToolEvent += OnShouldExecuteTool;
             }
-            currentChatbot = ChatbotManager.Instance.GetCurrentChatbot();
-            MarkDirty(AIHelperDirtyFlag.Chatbot);
+        }
+
+        void UnRegisterChatbotEvents()
+        {
+            if (currentChatbot != null)
+            {
+                currentChatbot.OnStreamingMessage -= OnStreamingMessageReceived;
+                currentChatbot.OnShouldExecuteToolEvent -= OnShouldExecuteTool;
+                currentChatbot.OnChatStateChangedEvent -= OnChatStageChange;
+            }
         }
 
         private void OnChatbotListChanged()
@@ -386,6 +405,22 @@ namespace UnityAIHelper.Editor
                 // 更新会话名称
                 currentChatbot.RenameSession(currentChatbot.Session.sessionId, result);
                 MarkDirty(AIHelperDirtyFlag.SessionList);
+            }
+        }
+
+        async Task<bool> OnShouldExecuteTool(ChatMessageInfo messageInfo, ToolCall toolCall)
+        {
+            if (!isProcessing) return false;
+            return await chatAreaUI.OnShouldExecuteTool(messageInfo,toolCall);
+        }
+
+        void OnChatStageChange(ChatStateChangedEventArgs e)
+        {
+            if (e.NewMessageState == ChatMessageState.Succeeded || e.NewMessageState == ChatMessageState.ProcessingTool)
+            {
+                isStreaming = false;
+                currentStreamingMessage = null;
+                MarkDirty(AIHelperDirtyFlag.StreamingMessage|AIHelperDirtyFlag.MessageList);
             }
         }
     }

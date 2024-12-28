@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using NUnit.Framework;
 
 namespace UnityAIHelper.Editor.UI
 {
@@ -23,6 +24,7 @@ namespace UnityAIHelper.Editor.UI
         private List<ChatMessage> toolResults;
         private ChatMessage lastStreamingMessage;
         private ChatMessageElement _streamingElement;
+        private Dictionary<string,ChatMessageElement> _messageElements;
 
         // 消息操作回调
         public Action<ChatMessageInfo> OnDeleteMessage;
@@ -50,9 +52,9 @@ namespace UnityAIHelper.Editor.UI
         /// <summary>
         /// 更新聊天内容
         /// </summary>
-        void UpdateMessageList(IReadOnlyList<ChatMessageInfo> chatHistory)
+        void UpdateMessageList()
         {
-
+            var chatHistory = window.currentChatbot.GetChatHistory();
             // 清空并重新填充列表
             filteredMessages.Clear();
             toolResults.Clear();
@@ -60,11 +62,11 @@ namespace UnityAIHelper.Editor.UI
             // 分类消息
             foreach (var messageInfo in chatHistory)
             {
-                if (messageInfo.message.role == "tool")
+                if (messageInfo.message.role == ChatMessage.Roles.Tool)
                 {
                     toolResults.Add(messageInfo.message);
                 }
-                else if (messageInfo.message.role != "system")
+                else if (messageInfo.message.role != ChatMessage.Roles.System)
                 {
                     filteredMessages.Add(messageInfo);
                 }
@@ -76,11 +78,8 @@ namespace UnityAIHelper.Editor.UI
             // 添加消息
             foreach (var messageInfo in filteredMessages)
             {
-                var messageElement = new ChatMessageElement(
-                    messageInfo,
-                    OnDeleteMessage,
-                    toolResults
-                );
+                var messageElement
+                    = GetOrCreateElement(messageInfo);
                 scrollView.Add(messageElement);
             }
 
@@ -90,12 +89,37 @@ namespace UnityAIHelper.Editor.UI
 
         }
 
+        ChatMessageElement GetOrCreateElement(ChatMessageInfo messageInfo)
+        {
+            _messageElements ??= new();
+            ChatMessageElement messageElement = GetElement(messageInfo);
+            if (messageElement==null)
+            {
+                messageElement = new ChatMessageElement(
+                    messageInfo,
+                    OnDeleteMessage,
+                    toolResults
+                );
+                _messageElements[messageInfo.messageId] = messageElement;
+            }
+            else
+            {
+                messageElement.UpdateMessage(toolResults);
+            }
+            return messageElement;
+        }
+        
+        ChatMessageElement GetElement(ChatMessageInfo messageInfo)
+        {
+
+            return _messageElements?.GetValueOrDefault(messageInfo.messageId);
+        }
+
         public override void OnUpdateUI()
         {
             if (window.IsDirty(AIHelperDirtyFlag.MessageList))
             {
-                var chatHistory = window.currentChatbot.GetChatHistory();
-                UpdateMessageList(chatHistory);
+                UpdateMessageList();
             }
             else if (window.IsDirty(AIHelperDirtyFlag.StreamingMessage)||window.IsDirty(AIHelperDirtyFlag.SendingMessage))
             {
@@ -108,6 +132,7 @@ namespace UnityAIHelper.Editor.UI
                         _streamingElement = new ChatMessageElement(
                             new ChatMessageInfo(window.currentStreamingMessage)
                         );
+                        _streamingElement.name = "streaming message";
                         scrollView.Add(_streamingElement);
                         lastStreamingMessage = window.currentStreamingMessage;
                     }
@@ -128,6 +153,7 @@ namespace UnityAIHelper.Editor.UI
                     }
                 }
             }
+   
             
             
             // 处理滚动
@@ -139,6 +165,17 @@ namespace UnityAIHelper.Editor.UI
                     scrollView.scrollOffset = new Vector2(0, scrollView.contentContainer.worldBound.height);
                 });
             }
+        }
+        
+        public Task<bool> OnShouldExecuteTool(ChatMessageInfo messageInfo,ToolCall toolCall)
+        {
+            UpdateMessageList();
+            var element = GetElement(messageInfo);
+            if (element == null)
+            {
+                throw new Exception("Must Update Message List before tool call.");
+            }
+            return element.RequestToolConfirmation(toolCall);
         }
     }
 }

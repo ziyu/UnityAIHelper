@@ -114,7 +114,6 @@ namespace UnityAIHelper.Editor.Tools
         public void RegisterBuiltInTools(ToolExecutor toolExecutor)
         {
             // 系统工具
-            RegisterTool(new SystemTools.CreateFileTool(),toolExecutor);
             RegisterTool(new SystemTools.ReadFileTool(),toolExecutor);
             RegisterTool(new SystemTools.DeleteFileTool(),toolExecutor);
             RegisterTool(new SystemTools.CopyFileTool(),toolExecutor);
@@ -122,6 +121,19 @@ namespace UnityAIHelper.Editor.Tools
             RegisterTool(new SystemTools.WatchFileTool(),toolExecutor);
             RegisterTool(new SystemTools.ExecuteCodeTool(),toolExecutor);
             RegisterTool(new SystemTools.CreateScriptTool(),toolExecutor);
+            
+            // Scene tools
+            RegisterTool(new SceneTools.CreateSceneTool(), toolExecutor);
+            RegisterTool(new SceneTools.LoadSceneTool(), toolExecutor);
+            RegisterTool(new SceneTools.SaveSceneTool(), toolExecutor);
+            RegisterTool(new SceneTools.SceneStructureTool(), toolExecutor);
+            
+            // Asset tools
+            RegisterTool(new AssetTools.ImportAssetTool(), toolExecutor);
+            RegisterTool(new AssetTools.MoveAssetTool(), toolExecutor);
+            RegisterTool(new AssetTools.RenameAssetTool(), toolExecutor);
+            RegisterTool(new AssetTools.DeleteAssetTool(), toolExecutor);
+            RegisterTool(new AssetTools.GetAssetInfoTool(), toolExecutor);
         }
     }
 }

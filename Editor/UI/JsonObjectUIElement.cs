@@ -10,7 +10,7 @@ namespace UnityAIHelper.Editor.UI
     public class JsonObjectUIElement : VisualElement
     {
         private const int STRING_LENGTH_THRESHOLD = 100; // 字符串长度超过此值默认收起
-        private const int NODE_COUNT_THRESHOLD = 5;  // 子节点数量超过此值默认收起
+        private const int NODE_COUNT_THRESHOLD = 10;  // 子节点数量超过此值默认收起
         private bool collapsed;
         private readonly VisualElement contentContainer;
         private readonly Label toggleLabel;

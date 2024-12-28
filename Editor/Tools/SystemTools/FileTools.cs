@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityLLMAPI.Utils.Json;
 
 namespace UnityAIHelper.Editor.Tools.SystemTools
 {
@@ -18,59 +19,18 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
         protected string NormalizePath(string path)
         {
             if (string.IsNullOrEmpty(path)) return path;
-            
             // 处理相对路径
             if (!Path.IsPathRooted(path))
             {
                 path=path.TrimStart('/');
                 if (path.StartsWith("Assets"))
                 {
-                    path = path.Substring(6);
+                    path = path.Substring(7);
                 }
-
                 path = Path.Combine(Application.dataPath, path);
             }
-            
-            return Path.GetFullPath(path);
-        }
-    }
-
-    /// <summary>
-    /// 创建文件工具
-    /// </summary>
-    public class CreateFileTool : FileToolBase
-    {
-        public override string Name => "CreateFile";
-        public override string Description => "创建文件";
-
-        protected override void InitializeParameters()
-        {
-            AddParameter("path", typeof(string), "文件路径");
-            AddParameter("content", typeof(string), "文件内容", false, "");
-            AddParameter("overwrite", typeof(bool), "是否覆盖已存在的文件", false, false);
-        }
-
-        public override async Task<object> ExecuteAsync(IDictionary<string, object> parameters)
-        {
-            var path = NormalizePath(GetParameterValue<string>(parameters, "path"));
-            var content = GetParameterValueOrDefault<string>(parameters, "content", "");
-            var overwrite = GetParameterValueOrDefault(parameters, "overwrite", false);
-
-            if (File.Exists(path) && !overwrite)
-            {
-                throw new Exception($"File already exists: {path}");
-            }
-
-            var directory = Path.GetDirectoryName(path);
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await File.WriteAllTextAsync(path, content);
-            AssetDatabase.Refresh();
-            
-            return path;
+            var finalPath= Path.GetFullPath(path);
+            return finalPath;
         }
     }
 
@@ -202,6 +162,10 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
             AddParameter("pattern", typeof(string), "搜索模式", false, "*.*");
             AddParameter("recursive", typeof(bool), "是否递归搜索", false, true);
             AddParameter("includeHidden", typeof(bool), "是否包含隐藏文件", false, false);
+            AddParameter("page", typeof(int), "页码", false, 1);
+            AddParameter("pageSize", typeof(int), "每页数量", false, 100);
+            AddParameter("sortBy", typeof(string), "排序字段(name/size/lastModified)", false, "name");
+            AddParameter("sortOrder", typeof(string), "排序顺序(asc/desc)", false, "asc");
         }
 
         public override async Task<object> ExecuteAsync(IDictionary<string, object> parameters)
@@ -210,6 +174,10 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
             var pattern = GetParameterValueOrDefault(parameters, "pattern", "*.*");
             var recursive = GetParameterValueOrDefault(parameters, "recursive", true);
             var includeHidden = GetParameterValueOrDefault(parameters, "includeHidden", false);
+            var page = GetParameterValueOrDefault(parameters, "page", 1);
+            var pageSize = GetParameterValueOrDefault(parameters, "pageSize", 100);
+            var sortBy = GetParameterValueOrDefault(parameters, "sortBy", "name");
+            var sortOrder = GetParameterValueOrDefault(parameters, "sortOrder", "asc");
 
             if (!Directory.Exists(directory))
             {
@@ -224,7 +192,43 @@ namespace UnityAIHelper.Editor.Tools.SystemTools
                 files = files.Where(f => !new FileInfo(f).Attributes.HasFlag(FileAttributes.Hidden)).ToArray();
             }
 
-            return files;
+            // Apply sorting
+            files = sortBy.ToLower() switch
+            {
+                "size" => sortOrder == "asc" ?
+                    files.OrderBy(f => new FileInfo(f).Length).ToArray() :
+                    files.OrderByDescending(f => new FileInfo(f).Length).ToArray(),
+                "lastmodified" => sortOrder == "asc" ?
+                    files.OrderBy(f => new FileInfo(f).LastWriteTime).ToArray() :
+                    files.OrderByDescending(f => new FileInfo(f).LastWriteTime).ToArray(),
+                _ => sortOrder == "asc" ?
+                    files.OrderBy(f => f).ToArray() :
+                    files.OrderByDescending(f => f).ToArray()
+            };
+
+            // Apply pagination
+            var totalCount = files.Length;
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            page = Math.Max(1, Math.Min(page, totalPages));
+            
+            var pagedFiles = files
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToArray();
+
+            var collapsedMessage = totalPages > 1 ?
+                $"共 {totalPages} 页结果 (使用 page 参数查看更多)" :
+                null;
+            var result = new
+            {
+                files = pagedFiles,
+                totalCount,
+                totalPages,
+                currentPage = page,
+                pageSize,
+                collapsedMessage
+            };
+            return result;
         }
     }
 

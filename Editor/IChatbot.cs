@@ -15,6 +15,8 @@ namespace UnityAIHelper.Editor
         ChatSession Session { get; }
         
         event Action<ChatMessage> OnStreamingMessage;
+        event Func<ChatMessageInfo,ToolCall, Task<bool>> OnShouldExecuteToolEvent;
+        event Action<ChatStateChangedEventArgs> OnChatStateChangedEvent;
         Task<ChatMessage> SendMessageAsync(string message, CancellationToken cancellationToken = default);
         Task<ChatMessage> ContinueMessageAsync(CancellationToken cancellationToken = default);
         

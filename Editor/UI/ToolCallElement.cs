@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityLLMAPI.Models;
@@ -17,7 +18,10 @@ namespace UnityAIHelper.Editor.UI
         private ChatMessage result;
         private bool initialized;
         private bool collapsed = true;  // Default collapsed state
+        private bool confirmed = false;
         private VisualElement contentContainer;  // Container for collapsible content
+        private VisualElement confirmatioContainer;
+        private TaskCompletionSource<bool> confirmationTask;
 
         public ToolCallElement(ToolCall toolCall, ChatMessage result = null)
         {
@@ -92,7 +96,10 @@ namespace UnityAIHelper.Editor.UI
                 argsLabel.AddToClassList("tool-args");
                 contentContainer.Add(argsLabel);
             }
-
+            
+            if(confirmatioContainer!=null)
+                contentContainer.Add(confirmatioContainer);
+            
             // 结果
             if (result != null)
             {
@@ -149,6 +156,53 @@ namespace UnityAIHelper.Editor.UI
                     arrow.text = "▼";
                 }
             }
+        }
+
+        public Task<bool> RequestConfirmation()
+        {
+            confirmationTask = new TaskCompletionSource<bool>();
+            
+            // Create confirmation UI
+            confirmatioContainer ??= CreateConfirmationUI();
+            if(!contentContainer.Contains(confirmatioContainer))
+                contentContainer.Add(confirmatioContainer);
+
+            return confirmationTask.Task;
+        }
+
+        private void OnConfirm()
+        {
+            confirmationTask?.TrySetResult(true);
+            RemoveConfirmationUI();
+        }
+
+        private void OnCancel()
+        {
+            confirmationTask?.TrySetResult(false);
+            RemoveConfirmationUI();
+        }
+
+        private void RemoveConfirmationUI()
+        {
+            confirmatioContainer?.RemoveFromHierarchy();
+            confirmatioContainer = null;
+        }
+
+        private VisualElement CreateConfirmationUI()
+        {
+            // 加载UXML模板
+            var template = PackageAssetLoader.LoadUIAsset<VisualTreeAsset>("ToolConfirmUI.uxml");
+            var confirmUI = template.CloneTree();
+
+            // 获取按钮引用
+            var confirmButton = confirmUI.Q<Button>(className:"confirm-button");
+            var cancelButton = confirmUI.Q<Button>(className:"cancel-button");
+
+            // 绑定按钮事件
+            confirmButton.clicked += OnConfirm;
+            cancelButton.clicked += OnCancel;
+
+            return confirmUI;
         }
     }
 }
